@@ -4,20 +4,41 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
-	"github.com/lamigrate/lamigrate"
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/rajifafif/lamigrate"
 )
 
 func main() {
-	// Scan os.Args to separate global flags from command + command args.
-	// Go's flag package stops at first non-flag arg, so we need to
-	// find the command boundary and parse flags only from the prefix.
 	globalFlags, cmdName, cmdArgs := splitArgs(os.Args[1:])
 
-	dir, dsn, table, pretend := parseGlobalFlags(globalFlags)
+	dir, dsn, table, pretend, err := parseGlobalFlags(globalFlags)
+	if err != nil {
+		fatal(err)
+	}
+	if cmdName == "" {
+		printUsage()
+		os.Exit(1)
+	}
 
+	if name, matched, err := parseMigrationCreate(cmdName, cmdArgs); matched {
+		if err != nil {
+			fatal(err)
+		}
+		created, err := lamigrate.CreateMigration(*dir, name)
+		if err != nil {
+			fatal(err)
+		}
+		fmt.Printf("Created:  %s\n", created.UpPath)
+		fmt.Printf("Created:  %s\n", created.DownPath)
+		fmt.Printf("Template: %s\n", created.Template)
+		return
+	}
+
+	if !isDatabaseCommand(cmdName) {
+		fatal(fmt.Errorf("unknown command: %s", cmdName))
+	}
 	if *dsn == "" {
 		*dsn = os.Getenv("LAMIGRATE_DSN")
 	}
@@ -26,15 +47,15 @@ func main() {
 		printUsage()
 		os.Exit(1)
 	}
-	if cmdName == "" {
-		printUsage()
-		os.Exit(1)
-	}
 
 	ctx := context.Background()
 
 	switch cmdName {
 	case "up":
+		n, err := parseN(cmdArgs)
+		if err != nil {
+			fatal(fmt.Errorf("up: %w", err))
+		}
 		m, err := lamigrate.New(*dir, *dsn)
 		if err != nil {
 			fatal(err)
@@ -42,7 +63,6 @@ func main() {
 		defer m.Close()
 		m.Table(*table)
 
-		n := parseN(cmdArgs, 0)
 		if *pretend {
 			err = m.PretendUp(ctx, n...)
 		} else {
@@ -53,6 +73,10 @@ func main() {
 		}
 
 	case "down":
+		n, err := parseN(cmdArgs)
+		if err != nil {
+			fatal(fmt.Errorf("down: %w", err))
+		}
 		m, err := lamigrate.New(*dir, *dsn)
 		if err != nil {
 			fatal(err)
@@ -60,7 +84,6 @@ func main() {
 		defer m.Close()
 		m.Table(*table)
 
-		n := parseN(cmdArgs, 0)
 		if *pretend {
 			err = m.PretendDown(ctx, n...)
 		} else {
@@ -71,6 +94,9 @@ func main() {
 		}
 
 	case "reset":
+		if err := requireNoArgs("reset", cmdArgs); err != nil {
+			fatal(err)
+		}
 		m, err := lamigrate.New(*dir, *dsn)
 		if err != nil {
 			fatal(err)
@@ -88,6 +114,9 @@ func main() {
 		}
 
 	case "status":
+		if err := requireNoArgs("status", cmdArgs); err != nil {
+			fatal(err)
+		}
 		m, err := lamigrate.New(*dir, *dsn)
 		if err != nil {
 			fatal(err)
@@ -119,26 +148,10 @@ func main() {
 		}
 		fmt.Println()
 
-	case "make":
-		if len(cmdArgs) < 1 {
-			fmt.Fprintln(os.Stderr, "usage: lamigrate make <migration_name>")
-			os.Exit(1)
-		}
-		name := strings.Join(cmdArgs, "_")
-		m, err := lamigrate.New(*dir, *dsn)
-		if err != nil {
-			fatal(err)
-		}
-		defer m.Close()
-
-		base, err := m.Make(name)
-		if err != nil {
-			fatal(err)
-		}
-		fmt.Printf("Created:  %s.up.sql\n", base)
-		fmt.Printf("Created:  %s.down.sql\n", base)
-
 	case "import":
+		if err := requireNoArgs("import", cmdArgs); err != nil {
+			fatal(err)
+		}
 		m, err := lamigrate.New(*dir, *dsn)
 		if err != nil {
 			fatal(err)
@@ -149,11 +162,6 @@ func main() {
 		if err := m.ImportLegacy(ctx); err != nil {
 			fatal(err)
 		}
-
-	default:
-		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", cmdName)
-		printUsage()
-		os.Exit(1)
 	}
 }
 
@@ -167,100 +175,152 @@ Global flags (must appear BEFORE command):
   -dir      Migrations directory (default: sql/migrations)
   -dsn      MySQL DSN or set LAMIGRATE_DSN env
   -table    Tracking table name (default: migrations)
-  -pretend  Show SQL without executing
+  -pretend, --pretend
+             Show SQL without executing
 
 Commands:
   up [N]            Apply next N pending migrations (all if omitted)
   down [N]          Rollback N from last batch (all in batch if omitted)
   reset             Rollback ALL migrations
   status            Show applied vs pending
-  make <name>       Create new migration file pair
+  migration create <name>
+                     Create a Laravel-like .up.sql/.down.sql pair (no DSN)
+  make <name>       Compatibility alias for migration create
+  make:migration <name>
+                     Laravel-style alias for migration create
   import            Import legacy numbered files as already applied
 
 Examples:
   lamigrate -dsn "user:pass@tcp(localhost:3306)/mydb" up
   lamigrate -dsn "..." -pretend down
   lamigrate -dsn "..." status
-  lamigrate -dsn "..." make create_users_table
+  lamigrate -dir sql/migrations migration create create_users_table
   lamigrate -dsn "..." import
 `)
 }
 
-// splitArgs splits os.Args[1:] into: global flags, command name, command args.
-// Global flags start with "-". The command is the first non-flag arg.
-// Everything after the command is command args.
-func splitArgs(args []string) (globalFlags []string, cmdName string, cmdArgs []string) {
-	for i, arg := range args {
-		if strings.HasPrefix(arg, "-") {
-			// Check if this is a boolean flag without value (like -pretend)
-			// or a key=value flag (-dsn "...") or -flag value
-			if arg == "-pretend" {
-				globalFlags = append(globalFlags, arg)
-			} else if strings.Contains(arg, "=") {
-				globalFlags = append(globalFlags, arg)
-			} else {
-				// Might be -flag value (consume next arg as value)
-				globalFlags = append(globalFlags, arg)
-				if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
-					globalFlags = append(globalFlags, args[i+1])
-					// Skip next arg
-					args = append(args[:i+1], args[i+2:]...)
-				}
-			}
-		} else {
-			cmdName = arg
-			cmdArgs = args[i+1:]
-			return
+func parseMigrationCreate(cmdName string, cmdArgs []string) (name string, matched bool, err error) {
+	var nameParts []string
+	switch cmdName {
+	case "migration":
+		matched = true
+		if len(cmdArgs) == 0 || cmdArgs[0] != "create" {
+			return "", true, fmt.Errorf("usage: lamigrate migration create <migration_name>")
+		}
+		nameParts = cmdArgs[1:]
+	case "make", "make:migration":
+		matched = true
+		nameParts = cmdArgs
+	default:
+		return "", false, nil
+	}
+
+	if len(nameParts) == 0 {
+		return "", true, fmt.Errorf("usage: lamigrate migration create <migration_name>")
+	}
+	for _, part := range nameParts {
+		if strings.HasPrefix(part, "-") {
+			return "", true, fmt.Errorf("migration create flags must appear before the command: %s", part)
 		}
 	}
-	return
+	return strings.Join(nameParts, "_"), true, nil
 }
 
-func parseGlobalFlags(args []string) (dir, dsn, table *string, pretend *bool) {
+func isDatabaseCommand(name string) bool {
+	switch name {
+	case "up", "down", "reset", "status", "import":
+		return true
+	default:
+		return false
+	}
+}
+
+// splitArgs separates the global flag prefix from the command and its arguments.
+// It never mutates its input and leaves validation to parseGlobalFlags.
+func splitArgs(args []string) (globalFlags []string, cmdName string, cmdArgs []string) {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if !strings.HasPrefix(arg, "-") {
+			return globalFlags, arg, append([]string(nil), args[i+1:]...)
+		}
+
+		globalFlags = append(globalFlags, arg)
+		if arg == "-pretend" || arg == "--pretend" || strings.Contains(arg, "=") {
+			continue
+		}
+		if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+			globalFlags = append(globalFlags, args[i+1])
+			i++
+		}
+	}
+	return globalFlags, "", nil
+}
+
+func parseGlobalFlags(args []string) (dir, dsn, table *string, pretend *bool, err error) {
 	dirVal := "sql/migrations"
 	dsnVal := ""
 	tableVal := "migrations"
 	pretendVal := false
 
-	dir = &dirVal
-	dsn = &dsnVal
-	table = &tableVal
-	pretend = &pretendVal
-
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch {
-		case arg == "-dir" && i+1 < len(args):
+		case arg == "-dir":
+			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "-") {
+				return nil, nil, nil, nil, fmt.Errorf("global flag -dir requires a value")
+			}
 			i++
-			*dir = args[i]
-		case arg == "-dsn" && i+1 < len(args):
+			dirVal = args[i]
+		case arg == "-dsn":
+			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "-") {
+				return nil, nil, nil, nil, fmt.Errorf("global flag -dsn requires a value")
+			}
 			i++
-			*dsn = args[i]
-		case arg == "-table" && i+1 < len(args):
+			dsnVal = args[i]
+		case arg == "-table":
+			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "-") {
+				return nil, nil, nil, nil, fmt.Errorf("global flag -table requires a value")
+			}
 			i++
-			*table = args[i]
-		case arg == "-pretend":
-			*pretend = true
-		// Handle -flag=value syntax
+			tableVal = args[i]
+		case arg == "-pretend" || arg == "--pretend":
+			pretendVal = true
 		case strings.HasPrefix(arg, "-dir="):
-			*dir = strings.TrimPrefix(arg, "-dir=")
+			dirVal = strings.TrimPrefix(arg, "-dir=")
 		case strings.HasPrefix(arg, "-dsn="):
-			*dsn = strings.TrimPrefix(arg, "-dsn=")
+			dsnVal = strings.TrimPrefix(arg, "-dsn=")
 		case strings.HasPrefix(arg, "-table="):
-			*table = strings.TrimPrefix(arg, "-table=")
+			tableVal = strings.TrimPrefix(arg, "-table=")
+		default:
+			return nil, nil, nil, nil, fmt.Errorf("unknown global flag: %s", arg)
 		}
 	}
-	return
+	if strings.TrimSpace(dirVal) == "" {
+		return nil, nil, nil, nil, fmt.Errorf("global flag -dir requires a non-empty value")
+	}
+	if strings.TrimSpace(tableVal) == "" {
+		return nil, nil, nil, nil, fmt.Errorf("global flag -table requires a non-empty value")
+	}
+	return &dirVal, &dsnVal, &tableVal, &pretendVal, nil
 }
 
-func parseN(args []string, idx int) []int {
-	if idx >= len(args) {
-		return nil
+func parseN(args []string) ([]int, error) {
+	if len(args) == 0 {
+		return nil, nil
 	}
-	n := 0
-	fmt.Sscanf(args[idx], "%d", &n)
-	if n > 0 {
-		return []int{n}
+	if len(args) != 1 {
+		return nil, fmt.Errorf("expected at most one positive step count")
+	}
+	n, err := strconv.Atoi(args[0])
+	if err != nil || n <= 0 {
+		return nil, fmt.Errorf("step count must be a positive integer")
+	}
+	return []int{n}, nil
+}
+
+func requireNoArgs(command string, args []string) error {
+	if len(args) != 0 {
+		return fmt.Errorf("%s does not accept arguments", command)
 	}
 	return nil
 }

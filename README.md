@@ -8,21 +8,29 @@ Timestamp-based filenames, batch-tracked rollback, pretend mode — the workflow
 
 - **Timestamp filenames** — `20260730094235_create_users.up.sql` (no collision, sortable)
 - **Batch tracking** — rollback by batch, not by version number
-- **Pretend mode** — see SQL before executing (`--pretend`)
+- **Pretend mode** — see SQL before executing (`-pretend` or `--pretend`)
 - **Legacy import** — one-command migration from numbered files (000001-style)
-- **Zero deps** — only `go-sql-driver/mysql`
+- **Minimal dependencies** — `go-sql-driver/mysql` plus its transitive dependency
 - **Standalone CLI** or **library** — use however you want
 
 ## Install
 
 ```bash
-go install github.com/lamigrate/lamigrate/cmd/lamigrate@latest
+go install github.com/rajifafif/lamigrate/cmd/lamigrate@latest
 ```
 
 ## CLI
 
+Database commands use a DSN:
+
 ```bash
 lamigrate -dsn "user:pass@tcp(host:3306)/dbname" <command>
+```
+
+Offline migration creation does not:
+
+```bash
+lamigrate -dir sql/migrations migration create create_users_table
 ```
 
 | Command | Description |
@@ -31,7 +39,9 @@ lamigrate -dsn "user:pass@tcp(host:3306)/dbname" <command>
 | `down [N]` | Rollback N from last batch (all in batch if omitted) |
 | `reset` | Rollback ALL migrations |
 | `status` | Show applied vs pending |
-| `make <name>` | Create new migration file pair |
+| `migration create <name>` | Create a Laravel-like migration pair; no DSN required |
+| `make <name>` | Compatibility alias for `migration create` |
+| `make:migration <name>` | Laravel-style alias for `migration create` |
 | `import` | Import legacy numbered files as already applied |
 
 ### Flags
@@ -41,7 +51,7 @@ lamigrate -dsn "user:pass@tcp(host:3306)/dbname" <command>
 | `-dir` | `sql/migrations` | Migrations directory |
 | `-dsn` | — | MySQL DSN (or `LAMIGRATE_DSN` env) |
 | `-table` | `migrations` | Tracking table name |
-| `-pretend` | false | Show SQL without executing |
+| `-pretend`, `--pretend` | false | Show SQL without executing |
 
 ### Examples
 
@@ -58,8 +68,8 @@ lamigrate -dsn "..." -pretend down
 # See status
 lamigrate -dsn "..." status
 
-# Create new migration
-lamigrate -dsn "..." make create_users_table
+# Create a new migration without connecting to MySQL
+lamigrate -dir sql/migrations migration create create_users_table
 
 # Import from golang-migrate numbered files
 lamigrate -dsn "..." import
@@ -68,7 +78,7 @@ lamigrate -dsn "..." import
 ## Library
 
 ```go
-import "github.com/lamigrate/lamigrate"
+import "github.com/rajifafif/lamigrate"
 
 m, err := lamigrate.New("sql/migrations", "user:pass@tcp(host:3306)/dbname")
 if err != nil {
@@ -97,13 +107,45 @@ for _, s := range statuses {
     fmt.Printf("%s  %s\n", s.Filename, map[bool]string{true: "APPLIED", false: "PENDING"}[s.Applied])
 }
 
-// Create new migration files
-base, _ := m.Make("create_users_table")
-fmt.Println(base) // 20260730094235_create_users_table
+// Create new migration files without a database connection
+created, _ := lamigrate.CreateMigration("sql/migrations", "create_users_table")
+fmt.Println(created.UpPath)
 
 // Import legacy numbered files (one-time)
 m.ImportLegacy(ctx)
 ```
+
+## Creating Migrations
+
+`migration create` follows Laravel naming conventions while generating SQL
+files used by lamigrate:
+
+```bash
+lamigrate migration create create_users_table
+```
+
+This creates a timestamped pair:
+
+```text
+20260730123045_create_users_table.up.sql
+20260730123045_create_users_table.down.sql
+```
+
+For `create_<table>_table`, lamigrate generates a runnable MySQL table skeleton
+with an unsigned `BIGINT` primary key and nullable `created_at`/`updated_at`
+timestamps. Names such as `add_email_to_users_table` and
+`drop_legacy_code_from_users_table` receive inferred, commented SQL suggestions
+plus an active `SIGNAL` guard. Remove the guard only after reviewing and
+finishing both directions. Generic names receive guarded TODO templates so an
+unfinished migration cannot be silently recorded as applied.
+
+Migration creation is offline: it creates the migrations directory when needed
+and never requires or connects to a database.
+
+The migrations directory and its existing ancestors are trusted local project
+paths. They must not be replaced concurrently while a migration is being
+created. lamigrate rejects symlink components during normal validation, but it
+does not claim to sandbox a directory tree controlled by a hostile local user.
 
 ## File Format
 

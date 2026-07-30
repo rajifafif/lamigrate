@@ -2,8 +2,8 @@
 //
 // File naming:  YYYYMMDDHHMMSS_description.up.sql / .down.sql
 // Tracking:     migrations table with batch numbers (exactly like Laravel)
-// Commands:     up, down, reset, status, make, import
-// Flag:         --pretend shows SQL without executing
+// Commands:     up, down, reset, status, migration create, import
+// Flag:         -pretend / --pretend shows SQL without executing
 //
 // Usage as library:
 //
@@ -14,7 +14,7 @@
 //	m.Down(ctx, 2)         // rollback last 2
 //	m.Reset(ctx)           // rollback everything
 //	m.Status(ctx)          // []MigrationStatus
-//	m.Make("create_users") // create .up.sql + .down.sql
+//	lamigrate.CreateMigration("sql/migrations", "create_users_table")
 //	m.ImportLegacy(ctx)    // seed 000001-style files as applied
 package lamigrate
 
@@ -22,8 +22,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"sort"
 	"strings"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 // MigrationStatus represents one migration's state for status display.
@@ -475,8 +476,4 @@ func readSQL(path string) (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(string(data)), nil
-}
-
-func sortMigrationNames(names []string) {
-	sort.Strings(names)
 }
