@@ -1,6 +1,6 @@
 # LM-024 — Implement dirty-state execution and batch semantics
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: migration execution engineer
 - Depends on: LM-021, LM-022, LM-023
 - Architecture: §§5.1–5.3, 9.1–9.2, 11.2–11.3

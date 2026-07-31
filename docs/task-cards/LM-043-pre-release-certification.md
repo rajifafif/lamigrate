@@ -1,6 +1,6 @@
 # LM-043 — Certify first experimental release candidate
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: release owner + independent reviewer
 - Depends on: LM-024, LM-025, LM-026, LM-027, LM-030, LM-042
 - Architecture: §§18–22

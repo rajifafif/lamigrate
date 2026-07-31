@@ -1,6 +1,6 @@
 # LM-011 — Implement canonical migration-source and file-creation contract
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: Go filesystem/source engineer
 - Depends on: LM-000, LM-001, LM-002
 - Architecture: §§8, 11.1, 18.1–18.2, Phase 2

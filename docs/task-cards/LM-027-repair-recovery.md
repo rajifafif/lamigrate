@@ -1,6 +1,6 @@
 # LM-027 — Implement explicit dirty-state repair workflow
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: operations/recovery engineer
 - Depends on: LM-024
 - Architecture: §12, §§9–11, §14

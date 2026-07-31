@@ -1,6 +1,6 @@
 # LM-026 — Implement explicit prototype metadata adoption and recovery
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: metadata-migration engineer
 - Depends on: LM-011, LM-021, LM-022, LM-023
 - Architecture: §9.3, §18.2, Phase 3

@@ -114,7 +114,7 @@ func dsnFromConfigFile(path string) (string, error) {
 }
 
 func readConfigFile(path string) ([]byte, error) {
-	info, err := os.Stat(path)
+	info, err := os.Lstat(path)
 	if err != nil {
 		return nil, fmt.Errorf("lamigrate: read config file %s: %w", path, err)
 	}
@@ -172,6 +172,9 @@ func formatMySQLDSN(config dbMySQLConfig, source string) (string, error) {
 	}
 	if strings.TrimSpace(config.DBName) == "" {
 		return "", fmt.Errorf("lamigrate: dbMySQL.dbName is required in %s", source)
+	}
+	if config.Port == 0 {
+		config.Port = 3306
 	}
 	if config.Port < 1 || config.Port > 65535 {
 		return "", fmt.Errorf("lamigrate: dbMySQL.port must be between 1 and 65535 in %s", source)

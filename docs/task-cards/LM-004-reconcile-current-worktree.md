@@ -1,6 +1,6 @@
 # LM-004 — Reconcile current worktree and establish multi-agent baseline
 
-- Status: READY
+- Status: DONE
 - Suggested owner: coordinator / maintainer
 - Depends on: none
 - Architecture: implementation sequencing (§20), safe incremental alignment (§4), and execution-backlog rules

@@ -1,6 +1,6 @@
 # LM-025 — Implement reconciled golang-migrate baseline import
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: import/migration-history engineer
 - Depends on: LM-011, LM-021, LM-022, LM-023
 - Architecture: §13, §9 baseline rules, §18.2

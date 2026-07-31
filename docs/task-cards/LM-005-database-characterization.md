@@ -1,6 +1,6 @@
 # LM-005 — Characterize prototype database behavior in isolated MySQL
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: QA / database characterization engineer
 - Depends on: LM-001, LM-002
 - Architecture: §4, §§9–13, §18.2, Phase 1

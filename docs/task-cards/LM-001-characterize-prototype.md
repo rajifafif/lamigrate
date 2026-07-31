@@ -1,6 +1,6 @@
 # LM-001 — Characterize offline, library, and CLI prototype behavior
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: QA / test engineer
 - Depends on: LM-004
 - Architecture: §4, §18.1, Phase 1 (§20)

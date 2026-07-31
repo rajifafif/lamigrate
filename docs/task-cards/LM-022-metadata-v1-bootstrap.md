@@ -1,6 +1,6 @@
 # LM-022 — Implement versioned metadata v1 and safe bootstrap
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: MySQL metadata engineer
 - Depends on: LM-021, LM-002
 - Architecture: §9, §§10–11, Phase 3

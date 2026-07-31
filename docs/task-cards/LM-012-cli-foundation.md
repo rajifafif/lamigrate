@@ -1,6 +1,6 @@
 # LM-012 — Establish strict CLI foundation and offline command boundary
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: Go CLI engineer
 - Depends on: LM-000, LM-001
 - Architecture: §§6.1, 14, 16, Phase 2

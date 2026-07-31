@@ -1,6 +1,6 @@
 # LM-013 — Implement approved YAML/.env/DSN configuration sources
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: CLI/security engineer
 - Depends on: LM-000, LM-003, LM-010, LM-012
 - Architecture: §§5.8, 6.1, 14–16

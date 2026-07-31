@@ -1,0 +1,178 @@
+# lamigrate CI — LM-044: Full matrix activation
+# Pre-1.0 experimental. All jobs are evidence scaffolding; none are release-certifying.
+# Do not present any result from this workflow as a production-safety claim (§22).
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # --- §18.3 Gate: gofmt ---
+  format:
+    name: "§18.3 Format"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: Check gofmt
+        run: test -z "$(gofmt -l .)"
+
+  # --- §18.3 Gate: go vet ---
+  vet:
+    name: "§18.3 Vet"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: go vet
+        run: go vet ./...
+
+  # --- §18.3 Gate: go mod tidy ---
+  tidy:
+    name: "§18.3 Tidy"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: go mod tidy
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
+  # --- §18.3 Gate: unit tests ---
+  unit:
+    name: "§18.3 Unit Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: Unit tests
+        run: go test -count=1 ./...
+
+  # --- §18.3 Gate: race detector ---
+  race:
+    name: "§18.3 Race Detector"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: Race tests
+        run: go test -race -count=1 ./...
+
+  # --- §18.3 Gate: staticcheck ---
+  staticcheck:
+    name: "§18.3 Staticcheck"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: Install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@latest
+      - name: Run staticcheck
+        run: staticcheck ./...
+
+  # --- §18.3 Gate: govulncheck ---
+  govulncheck:
+    name: "§18.3 Govulncheck"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - name: Run govulncheck
+        run: govulncheck ./...
+
+  # --- §18.3 Gate: integration (MySQL 8.4) ---
+  integration-8_4:
+    name: "§18.3 Integration MySQL 8.4"
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: testpass
+          MYSQL_DATABASE: lamigrate_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: Integration tests (MySQL 8.4)
+        env:
+          LAMIGRATE_TEST_MYSQL_DSN: "root:testpass@tcp(127.0.0.1:3306)/lamigrate_test?multiStatements=true&parseTime=true"
+        run: go test -tags=integration -count=1 -v ./integration/ -timeout 120s
+
+  # --- §18.3 Gate: integration (MySQL 8.0) ---
+  integration-8_0:
+    name: "§18.3 Integration MySQL 8.0"
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0.35
+        env:
+          MYSQL_ROOT_PASSWORD: testpass
+          MYSQL_DATABASE: lamigrate_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: Integration tests (MySQL 8.0)
+        env:
+          LAMIGRATE_TEST_MYSQL_DSN: "root:testpass@tcp(127.0.0.1:3306)/lamigrate_test?multiStatements=true&parseTime=true"
+        run: go test -tags=integration -count=1 -v ./integration/ -timeout 120s
+
+  # --- §18.3 Gate: cross-build ---
+  cross-build:
+    name: "§18.3 Cross-build"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go build ./cmd/lamigrate

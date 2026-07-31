@@ -1,6 +1,6 @@
 # LM-030 — Deliver operational CLI, confirmation, JSON, and secret-safe UX
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: CLI/operator-experience engineer
 - Depends on: LM-012, LM-013, LM-023, LM-024, LM-025, LM-026, LM-027
 - Architecture: §§6.1, 14–16

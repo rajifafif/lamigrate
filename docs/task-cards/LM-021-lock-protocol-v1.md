@@ -1,6 +1,6 @@
 # LM-021 — Implement canonical advisory-lock protocol v1
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: MySQL concurrency engineer
 - Depends on: LM-020
 - Architecture: §§5.1, 9, 10.1–10.2, 18.2

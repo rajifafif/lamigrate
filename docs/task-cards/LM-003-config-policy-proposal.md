@@ -1,6 +1,6 @@
 # LM-003 — Propose configuration-source and credential policy
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: maintainer + security/CLI designer
 - Depends on: LM-004
 - Architecture: §§5.8, 6.1, 14–16

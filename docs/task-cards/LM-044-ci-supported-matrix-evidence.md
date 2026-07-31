@@ -1,6 +1,6 @@
 # LM-044 — Activate supported CI matrix and collect release evidence
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: CI/security engineer
 - Depends on: LM-024, LM-025, LM-026, LM-027, LM-030, LM-040
 - Architecture: §§17–19, §18.3, §22

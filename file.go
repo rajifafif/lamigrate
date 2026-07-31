@@ -17,11 +17,13 @@ const maxMigrationDescriptionLength = 200
 
 // migrationFile represents one parsed migration file.
 type migrationFile struct {
-	Name      string // e.g. "20260730094235_create_users"
-	Filename  string // e.g. "20260730094235_create_users.up.sql"
-	Timestamp int64  // e.g. 20260730094235
-	UpPath    string
-	DownPath  string
+	Name         string // e.g. "20260730094235_create_users"
+	Filename     string // e.g. "20260730094235_create_users.up.sql"
+	Timestamp    int64  // e.g. 20260730094235
+	UpPath       string
+	DownPath     string
+	UpChecksum   [32]byte
+	DownChecksum [32]byte
 }
 
 // CreatedMigration describes a migration pair generated on disk.
@@ -84,13 +86,25 @@ func scanMigrations(dir string) ([]migrationFile, error) {
 		}
 
 		if _, exists := seen[baseName]; !exists {
-			seen[baseName] = &migrationFile{
+			mf := &migrationFile{
 				Name:      baseName,
 				Filename:  name,
 				Timestamp: ts,
 				UpPath:    filepath.Join(dir, name),
 				DownPath:  downPath,
 			}
+			// Compute checksums for both files in the pair.
+			upCS, err := checksumFile(mf.UpPath)
+			if err != nil {
+				return nil, fmt.Errorf("lamigrate: checksum %s: %w", mf.UpPath, err)
+			}
+			downCS, err := checksumFile(downPath)
+			if err != nil {
+				return nil, fmt.Errorf("lamigrate: checksum %s: %w", downPath, err)
+			}
+			mf.UpChecksum = upCS
+			mf.DownChecksum = downCS
+			seen[baseName] = mf
 		}
 	}
 
@@ -448,4 +462,13 @@ func quoteIdentifier(identifier string) string {
 
 func readFile(path string) ([]byte, error) {
 	return os.ReadFile(path)
+}
+
+// fileStat returns the size in bytes of the file at path.
+func fileStat(path string) (int64, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0, err
+	}
+	return info.Size(), nil
 }

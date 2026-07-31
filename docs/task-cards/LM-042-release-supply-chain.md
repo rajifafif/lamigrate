@@ -1,6 +1,6 @@
 # LM-042 — Build reproducible release and supply-chain workflow
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: release engineer
 - Depends on: LM-044, LM-045
 - Architecture: §19, Phase 5

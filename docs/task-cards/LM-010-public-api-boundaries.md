@@ -1,6 +1,6 @@
 # LM-010 — Establish side-effect-free public API and typed boundaries
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: Go API engineer
 - Depends on: LM-000, LM-001, LM-005
 - Architecture: §§6–7, §16, Phase 2

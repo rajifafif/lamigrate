@@ -1,6 +1,6 @@
 # LM-023 — Implement immutable planner, global integrity status, and dry-run parity
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: planner/status engineer
 - Depends on: LM-010, LM-011, LM-022
 - Architecture: §§5.4–5.6, 11.1, 11.4–11.5

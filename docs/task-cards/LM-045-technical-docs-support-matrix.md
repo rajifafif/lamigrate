@@ -1,6 +1,6 @@
 # LM-045 — Publish final technical documentation and support matrix
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: documentation/technical writer
 - Depends on: LM-003, LM-010, LM-013, LM-030, LM-041, LM-044
 - Architecture: §§14–19, §22

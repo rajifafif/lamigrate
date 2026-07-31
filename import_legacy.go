@@ -1,5 +1,14 @@
 package lamigrate
 
+// import_legacy.go — Deprecated legacy import from numbered migration files.
+//
+// This file contains the original importLegacy implementation which
+// reads numbered migration files and marks them as applied in batch 0.
+//
+// Deprecated: Use [Migrator.ImportGolangMigrate] for the production
+// reconciled import that reads golang-migrate source metadata, validates
+// dirty state, and properly classifies baselines.
+
 import (
 	"context"
 	"fmt"
@@ -7,6 +16,10 @@ import (
 
 // importLegacy reads numbered migration files and marks them as applied in batch 0.
 // It does NOT execute any SQL — it only records them as already applied.
+//
+// Deprecated: Use [Migrator.ImportGolangMigrate] instead, which provides
+// source/dirty reconciliation, proper baseline classification, and
+// idempotent import semantics.
 func (m *Migrate) importLegacy(ctx context.Context) error {
 	files, err := scanLegacyMigrations(m.dir)
 	if err != nil {

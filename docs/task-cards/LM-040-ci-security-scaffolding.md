@@ -1,6 +1,6 @@
 # LM-040 — Add non-certifying CI and security scaffolding
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: CI/security engineer
 - Depends on: LM-000, LM-002
 - Architecture: §§17–19, §18.3, Phase 5

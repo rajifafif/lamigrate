@@ -1,0 +1,89 @@
+# GoReleaser configuration for lamigrate
+# Pre-1.0 experimental releases — see docs/release-process.md
+# Architecture ref: architecture.md §19 (Release and supply-chain architecture)
+#
+# DO NOT store secrets in this file. GoReleaser reads GITHUB_TOKEN from the
+# environment at release time.
+
+project_name: lamigrate
+
+before:
+  hooks:
+    - go mod tidy
+    - go vet ./...
+
+builds:
+  - id: lamigrate
+    main: ./cmd/lamigrate
+    binary: lamigrate
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+    env:
+      - CGO_ENABLED=0
+
+archives:
+  - id: default
+    builds:
+      - lamigrate
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: >-
+      lamigrate_{{ .Tag }}_{{ .Os }}_{{ .Arch }}
+
+checksum:
+  name_template: "SHA256SUMS"
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+  groups:
+    - title: Features
+      regexp: "^feat"
+    - title: Bug Fixes
+      regexp: "^fix"
+    - title: Other Changes
+      regexp: ".*"
+
+release:
+  github:
+    owner: rajifafif
+    name: lamigrate
+  draft: true
+  prerelease: auto
+  name_template: "lamigrate {{ .Tag }} — experimental pre-1.0"
+  header: |
+    ## ⚠️ Experimental Pre-1.0 Release
+
+    This is an experimental pre-1.0 release. It does **not** claim production
+    safety. The public API, metadata schema, and CLI interface may change
+    without notice between releases. Do not rely on this in production until
+    a stable v1.0.0 is published.
+
+    See [docs/release-process.md](docs/release-process.md) for verification
+    steps and [architecture.md](architecture.md) for the target architecture.
+  footer: |
+    **Verification:**
+    ```
+    sha256sum -c SHA256SUMS
+    go version -m lamigrate
+    ```
+
+sboms:
+  - artifacts: archive
+    documents:
+      - "{{ .ArtifactName }}.sbom.json"

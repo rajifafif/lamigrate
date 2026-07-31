@@ -1,6 +1,6 @@
 # LM-002 — Build isolated pinned MySQL integration harness
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: QA infrastructure / DevOps
 - Depends on: LM-004, LM-000
 - Architecture: §§17–18, Phase 1

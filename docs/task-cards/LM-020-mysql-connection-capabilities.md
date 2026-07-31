@@ -1,6 +1,6 @@
 # LM-020 — Implement private MySQL session lifecycle and capability probes
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: MySQL runtime engineer
 - Depends on: LM-010, LM-002
 - Architecture: §§7, 10, 17–18, Phase 3

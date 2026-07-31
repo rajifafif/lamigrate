@@ -1,6 +1,6 @@
 # LM-041 — Add open-source governance and experimental-status scaffolding
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: documentation/open-source maintainer
 - Depends on: LM-000
 - Architecture: §§17, 19, 22, Phase 5

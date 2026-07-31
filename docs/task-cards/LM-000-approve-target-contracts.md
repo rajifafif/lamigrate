@@ -1,6 +1,6 @@
 # LM-000 — Approve target contracts and maintainer decisions
 
-- Status: BLOCKED
+- Status: DONE
 - Suggested owner: maintainer / architecture owner
 - Depends on: LM-001, LM-003
 - Architecture: §§1–5, 7, 8.3, 15, 17, 21
