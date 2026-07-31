@@ -11,7 +11,7 @@ import (
 	"github.com/rajifafif/lamigrate"
 )
 
-const version = "0.1.0-experimental"
+const version = "0.1.1-experimental"
 
 func main() {
 	globalFlags, cmdName, cmdArgs := splitArgs(os.Args[1:])
