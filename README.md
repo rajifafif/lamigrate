@@ -20,7 +20,6 @@ Timestamp-based filenames, batch-tracked rollback, pretend mode -- the workflow 
 - **Legacy import** -- one-command import from golang-migrate numbered files
 - **Configuration** -- YAML, `.env`, or environment variable (see [Configuration](docs/configuration.md))
 - **JSON output** -- structured JSON for scripting (`--json`, experimental schema v1)
-- **SQL seeders** -- Laravel-style `seed` / `db:seed`, ordered or targeted with `--class`
 - **Minimal dependencies** -- `go-sql-driver/mysql` and `gopkg.in/yaml.v3` plus their transitive deps
 - **Standalone CLI** or **Go library** -- use however you want
 
@@ -90,7 +89,6 @@ lamigrate [global-flags] <command> [command-args]
 | `down [--step N]` | Rollback N from last batch (all in batch if omitted) |
 | `reset` | Rollback ALL migrations (requires confirmation or `--yes`) |
 | `status` | Show applied vs pending migrations |
-| `seed [--class Name]` | Execute SQL seeders in lexical order (alias: `db:seed`) |
 | `migration create <name>` | Create a `.up.sql`/`.down.sql` pair (no DSN required) |
 | `make <name>` | Compatibility alias for `migration create` |
 | `make:migration <name>` | Laravel-style alias for `migration create` |
@@ -102,7 +100,6 @@ lamigrate [global-flags] <command> [command-args]
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-dir` | `sql/migrations` | Migrations directory |
-| `-seed-dir` / `--seed-dir` | `sql/seeders` | SQL seed directory |
 | `-dsn` | -- | MySQL DSN (overrides config; warns about shell history exposure) |
 | `-config` / `--config` | -- | Explicit path to config file |
 | `-table` | `migrations` | Tracking table name |
@@ -128,15 +125,6 @@ lamigrate -config config.yaml --pretend down
 # Check status
 lamigrate -config config.yaml status
 
-# Run every regular SQL file in sql/seeders in lexical order
-lamigrate -config config.yaml db:seed
-
-# Run just sql/seeders/RolesSeeder.sql
-lamigrate -config config.yaml -seed-dir sql/seeders seed --class RolesSeeder
-
-# Preview selected seed files without executing SQL
-lamigrate -config config.yaml --pretend seed
-
 # Create a new migration (offline, no DSN needed)
 lamigrate -dir sql/migrations migration create create_users_table
 
@@ -145,25 +133,6 @@ lamigrate -config config.yaml -y import
 
 # JSON output
 lamigrate --json version
-```
-
-## SQL Seeders
-
-`seed` and `db:seed` execute SQL files rather than Go code. The default location is `sql/seeders`; pass `-seed-dir` before the command to use a different location.
-
-- Every regular `*.sql` file is selected and executed in lexical filename order.
-- `--class RolesSeeder` selects exactly `RolesSeeder.sql`, analogous to Laravel's `--class`.
-- `--pretend` validates and lists selected files but does not execute them.
-- Seeder runs are deliberately not recorded in the migrations metadata table. Make repeatable seed SQL idempotent, for example with `INSERT ... ON DUPLICATE KEY UPDATE`.
-- The command uses the same dedicated MySQL session, advisory lock, SQL execution checks, and maximum-file-size limit as migrations. It stops at the first failure.
-
-Example layout:
-
-```text
-sql/seeders/
-  001_roles.sql
-  010_admin_user.sql
-  RolesSeeder.sql
 ```
 
 ## Configuration
