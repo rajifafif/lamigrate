@@ -16,6 +16,10 @@ const version = "0.1.0-experimental"
 func main() {
 	globalFlags, cmdName, cmdArgs := splitArgs(os.Args[1:])
 
+	seedDir, globalFlags, err := extractSeedDir(globalFlags)
+	if err != nil {
+		fatal(err)
+	}
 	dir, dsn, configPath, table, pretend, yes, help, jsonOut, err := parseGlobalFlags(globalFlags)
 	if err != nil {
 		fatal(err)
@@ -59,6 +63,11 @@ func main() {
 
 	if !isDatabaseCommand(cmdName) {
 		fatalExit(ExitUsage, fmt.Errorf("unknown command: %s", cmdName))
+	}
+
+	seedRequest, err := parseSeedRequest(cmdName, cmdArgs, seedDir)
+	if err != nil {
+		fatalExit(ExitUsage, err)
 	}
 
 	// Config resolution for database commands.
@@ -184,6 +193,21 @@ func main() {
 			handleCommandError(cmdName, *jsonOut, err)
 		}
 		renderStatus(os.Stdout, report, *jsonOut)
+
+	case "seed", "db:seed":
+		if *pretend {
+			plan, err := m.PreviewSeed(ctx, seedRequest)
+			if err != nil {
+				handleCommandError(cmdName, *jsonOut, err)
+			}
+			renderSeedPlan(os.Stdout, plan, cmdName, *jsonOut)
+		} else {
+			result, err := m.Seed(ctx, seedRequest)
+			if err != nil {
+				handleCommandError(cmdName, *jsonOut, err)
+			}
+			renderSeedResult(os.Stdout, result, cmdName, *jsonOut)
+		}
 	}
 }
 
@@ -268,6 +292,7 @@ Usage:
 
 Global flags (must appear BEFORE command):
   -dir      Migrations directory (default: sql/migrations)
+  -seed-dir SQL seed directory (default: sql/seeders)
   -dsn      MySQL DSN or set LAMIGRATE_DSN env
   -config   Path to config file (config.yaml / config.yml / .env)
   -table    Tracking table name (default: migrations)
@@ -284,6 +309,8 @@ Commands:
   down [--step N]  Rollback N from last batch (all in batch if omitted)
   reset            Rollback ALL migrations (requires confirmation)
   status           Show applied vs pending
+  seed [--class Name]
+                   Execute SQL seeders (alias: db:seed)
   migration create <name>
                      Create a Laravel-like .up.sql/.down.sql pair (no DSN)
   make <name>       Compatibility alias for migration create
@@ -448,7 +475,7 @@ func parseMigrationCreate(cmdName string, cmdArgs []string) (name string, matche
 
 func isDatabaseCommand(name string) bool {
 	switch name {
-	case "up", "down", "reset", "status", "import":
+	case "up", "down", "reset", "status", "import", "seed", "db:seed":
 		return true
 	default:
 		return false

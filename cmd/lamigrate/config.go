@@ -85,7 +85,7 @@ func dsnFromConfigFile(path string) (string, error) {
 	case ".yaml", ".yml":
 		var parsed yamlConfig
 		decoder := yaml.NewDecoder(strings.NewReader(string(data)))
-		decoder.KnownFields(true)
+		decoder.KnownFields(false) // ignore fields we don't use (config.yaml has many)
 		if err := decoder.Decode(&parsed); err != nil {
 			return "", fmt.Errorf("lamigrate: parse YAML config %s: %w", path, err)
 		}

@@ -54,6 +54,47 @@ func renderResult(w io.Writer, result lamigrate.Result, cmdName string, jsonOut 
 	}
 }
 
+// renderSeedResult renders a seed execution result to w.
+func renderSeedResult(w io.Writer, result lamigrate.SeedResult, cmdName string, jsonOut bool) {
+	if jsonOut {
+		writeJSON(w, cmdName, map[string]interface{}{
+			"command": result.Command,
+			"seeded":  result.Seeded,
+			"errors":  result.Errors,
+			"count":   len(result.Seeded),
+		}, nil)
+		return
+	}
+	for _, seeder := range result.Seeded {
+		fmt.Fprintf(w, "Seeded %s\n", seeder.Name)
+	}
+	if len(result.Seeded) == 0 && len(result.Errors) == 0 {
+		fmt.Fprintln(w, "Nothing to seed.")
+		return
+	}
+	fmt.Fprintf(w, "%d seeder(s) executed.\n", len(result.Seeded))
+}
+
+// renderSeedPlan renders a seed dry-run plan to w.
+func renderSeedPlan(w io.Writer, plan lamigrate.SeedPlanView, cmdName string, jsonOut bool) {
+	if jsonOut {
+		writeJSON(w, cmdName, map[string]interface{}{
+			"command":   plan.Command,
+			"directory": plan.Directory,
+			"class":     plan.Class,
+			"seeders":   plan.Seeders,
+			"dry_run":   plan.DryRun,
+			"count":     len(plan.Seeders),
+		}, nil)
+		return
+	}
+	fmt.Fprintln(w, "Would seed:")
+	for _, name := range plan.Seeders {
+		fmt.Fprintf(w, "  %s\n", name)
+	}
+	fmt.Fprintf(w, "Pretend: %d seeder(s) would be executed.\n", len(plan.Seeders))
+}
+
 // renderPlanView renders a preview/dry-run plan to w.
 func renderPlanView(w io.Writer, plan lamigrate.PlanView, cmdName string, jsonOut bool) {
 	if jsonOut {
