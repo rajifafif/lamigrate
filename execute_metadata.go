@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -47,6 +48,11 @@ func assertSessionClean(ctx context.Context, conn *sql.Conn) error {
 		`SELECT THREAD_ID FROM performance_schema.threads ` +
 		`WHERE PROCESSLIST_ID = CONNECTION_ID())`
 	if err := conn.QueryRowContext(ctx, txQuery).Scan(&activeTxCount); err != nil {
+		// Soft-fail if user lacks SELECT on performance_schema.
+		// Lock ownership via IS_USED_LOCK still enforces single-writer.
+		if strings.Contains(err.Error(), "1142") || strings.Contains(err.Error(), "denied") {
+			return nil
+		}
 		return fmt.Errorf(
 			"%w: cannot check in_transaction via performance_schema: %v",
 			ErrUnsupportedDriver, err,

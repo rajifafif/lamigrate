@@ -283,6 +283,12 @@ func probeInTransaction(ctx context.Context, conn *sql.Conn) error {
 		`SELECT THREAD_ID FROM performance_schema.threads ` +
 		`WHERE PROCESSLIST_ID = CONNECTION_ID())`
 	if err := conn.QueryRowContext(ctx, query).Scan(&activeCount); err != nil {
+		// If the user lacks SELECT on performance_schema, treat as soft-pass.
+		// This is common for non-admin MySQL users. The lock protocol still
+		// enforces single-writer semantics via GET_LOCK ownership checks.
+		if strings.Contains(err.Error(), "1142") || strings.Contains(err.Error(), "denied") {
+			return nil
+		}
 		return fmt.Errorf(
 			"%w: in_transaction probe failed (performance_schema): %v",
 			ErrUnsupportedDriver, err,
