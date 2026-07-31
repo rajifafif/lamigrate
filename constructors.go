@@ -13,7 +13,7 @@ const (
 	defaultTableName   = "migrations"
 	defaultLockTimeout = 30 * time.Second
 	// defaultMaxFileSize is defined in file_validate.go.
-	maxLockTimeout = 24 * time.Hour
+	maxLockTimeout  = 24 * time.Hour
 	maxTableNameLen = 64
 )
 

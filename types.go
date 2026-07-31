@@ -40,9 +40,9 @@ type Options struct {
 // ---------- Step limiting ----------
 
 const (
-	stepKindNone   = 0 // zero value — must be rejected
-	stepKindAll    = 1 // every eligible migration
-	stepKindSteps  = 2 // at most n migrations
+	stepKindNone  = 0 // zero value — must be rejected
+	stepKindAll   = 1 // every eligible migration
+	stepKindSteps = 2 // at most n migrations
 )
 
 // StepLimit controls how many migrations a command processes.
@@ -158,13 +158,13 @@ type PlanView struct {
 // Migrator methods do not write to stdout or stderr; results are returned
 // as structured types.
 type Migrator struct {
-	dsn       string          // raw DSN for diagnostics/connection creation
-	config    *mysql.Config   // validated, cloned driver config
-	directory string          // resolved Directory from Options
-	legacyDir string          // resolved LegacyDir from Options
-	tableName string          // validated table name
-	lockTime  time.Duration   // validated lock timeout
-	maxFile   int64           // validated max file size
+	dsn       string        // raw DSN for diagnostics/connection creation
+	config    *mysql.Config // validated, cloned driver config
+	directory string        // resolved Directory from Options
+	legacyDir string        // resolved LegacyDir from Options
+	tableName string        // validated table name
+	lockTime  time.Duration // validated lock timeout
+	maxFile   int64         // validated max file size
 }
 
 // SessionCapabilities holds validated session information captured by

@@ -146,10 +146,10 @@ func validateStateRow(sourceKind string, sourceVersion *uint64, isBaseline bool,
 
 // tableColumnInfo holds column metadata from information_schema.
 type tableColumnInfo struct {
-	Name         string
-	DataType     string // MySQL data_type: varchar, bigint, int, binary, datetime, tinyint, char
-	ColumnType   string // MySQL column_type: varchar(64), bigint unsigned, etc.
-	IsNullable   string // "YES" or "NO"
+	Name          string
+	DataType      string // MySQL data_type: varchar, bigint, int, binary, datetime, tinyint, char
+	ColumnType    string // MySQL column_type: varchar(64), bigint unsigned, etc.
+	IsNullable    string // "YES" or "NO"
 	CharMaxLength *int64
 	CharacterSet  sql.NullString
 	Collation     sql.NullString
@@ -157,8 +157,8 @@ type tableColumnInfo struct {
 
 // tableIndexInfo holds index metadata from information_schema.
 type tableIndexInfo struct {
-	IndexName string
-	SeqInKey  int
+	IndexName  string
+	SeqInKey   int
 	ColumnName string
 	NonUnique  int // 0 = unique/primary, 1 = non-unique
 }

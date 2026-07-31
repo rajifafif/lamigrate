@@ -617,9 +617,9 @@ func TestReadConfigFileRejectsMissing(t *testing.T) {
 	}
 }
 
-// --- YAML strict fields ---
+// --- YAML compatibility ---
 
-func TestResolveDSNYAMLRejectsUnknownField(t *testing.T) {
+func TestResolveDSNYAMLAllowsUnknownField(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	configContent := `dbMySQL:
@@ -633,9 +633,8 @@ func TestResolveDSNYAMLRejectsUnknownField(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := resolveDSN("", "", dir)
-	if err == nil {
-		t.Fatal("expected error for unknown YAML field")
+	if _, err := resolveDSN("", "", dir); err != nil {
+		t.Fatalf("resolveDSN() error = %v; unknown fields should be ignored for application config compatibility", err)
 	}
 }
 
@@ -990,8 +989,8 @@ func TestParseEnvPortInvalid(t *testing.T) {
 func TestFirstEnvValuePriority(t *testing.T) {
 	t.Parallel()
 	values := map[string]string{
-		"DB_HOST":         "low",
-		"DB_MYSQL_HOST":   "mid",
+		"DB_HOST":           "low",
+		"DB_MYSQL_HOST":     "mid",
 		"LAMIGRATE_DB_HOST": "high",
 	}
 	got := firstEnvValue(values, "LAMIGRATE_DB_HOST", "DB_MYSQL_HOST", "DB_HOST")

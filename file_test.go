@@ -329,11 +329,11 @@ func TestValidateMigrationName(t *testing.T) {
 		name    string
 		wantErr bool
 	}{
-		{"20260730120000_create_users.up.sql", false},    // valid
-		{"20260730120000_create_users.down.sql", false},   // valid
-		{"not_a_timestamp_up.sql", true},                  // no timestamp
-		{"1234567890abc_.up.sql", true},                   // only 10 digits before non-digit
-		{"20260730120000_a.up.sql", false},                // single char desc, valid
+		{"20260730120000_create_users.up.sql", false},   // valid
+		{"20260730120000_create_users.down.sql", false}, // valid
+		{"not_a_timestamp_up.sql", true},                // no timestamp
+		{"1234567890abc_.up.sql", true},                 // only 10 digits before non-digit
+		{"20260730120000_a.up.sql", false},              // single char desc, valid
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -365,14 +365,14 @@ func TestValidateFilenameAccepts(t *testing.T) {
 func TestValidateFilenameRejects(t *testing.T) {
 	t.Parallel()
 	invalid := []string{
-		"",                                     // empty
-		"create_users.up.sql",                  // no timestamp
-		"20260730120000_create_users.sql",      // no up/down
-		"20260730120000_create_users.up.sqlx",  // wrong extension
-		"20260730120000_Create_Users.up.sql",    // uppercase
-		"20260730120000_create-users.up.sql",    // hyphen in name
-		"202607301200001_create_users.up.sql",   // 15 digits
-		"2026073012000_create_users.up.sql",     // 13 digits
+		"",                                    // empty
+		"create_users.up.sql",                 // no timestamp
+		"20260730120000_create_users.sql",     // no up/down
+		"20260730120000_create_users.up.sqlx", // wrong extension
+		"20260730120000_Create_Users.up.sql",  // uppercase
+		"20260730120000_create-users.up.sql",  // hyphen in name
+		"202607301200001_create_users.up.sql", // 15 digits
+		"2026073012000_create_users.up.sql",   // 13 digits
 	}
 	for _, name := range invalid {
 		if err := validateFilename(name); err == nil {

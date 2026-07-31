@@ -18,8 +18,9 @@ const (
 )
 
 // validFilenamePattern matches architecture §8.1:
-//   YYYYMMDDHHMMSS_description.up.sql
-//   YYYYMMDDHHMMSS_description.down.sql
+//
+//	YYYYMMDDHHMMSS_description.up.sql
+//	YYYYMMDDHHMMSS_description.down.sql
 //
 // where description is [a-z][a-z0-9_]*
 var validFilenamePattern = regexp.MustCompile(`^\d{14}_[a-z][a-z0-9_]*\.(up|down)\.sql$`)

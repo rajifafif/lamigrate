@@ -217,7 +217,7 @@ func TestNewMySQLValidatesOptions(t *testing.T) {
 	t.Run("negative_max_file_size", func(t *testing.T) {
 		t.Parallel()
 		_, err := lm.NewMySQL(validCfg(), lm.Options{
-			Directory:  t.TempDir(),
+			Directory:   t.TempDir(),
 			MaxFileSize: -1,
 		})
 		if err == nil {

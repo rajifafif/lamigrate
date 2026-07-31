@@ -23,15 +23,15 @@ type prototypeRow struct {
 
 // sourceMapping maps a prototype row to its source migration files.
 type sourceMapping struct {
-	PrototypeID uint64
-	Migration   string
-	Batch       uint64
-	AppliedAt   time.Time
-	SourceKind  string
-	SourceName  string
-	UpPath      string
-	DownPath    string
-	UpChecksum  [32]byte
+	PrototypeID  uint64
+	Migration    string
+	Batch        uint64
+	AppliedAt    time.Time
+	SourceKind   string
+	SourceName   string
+	UpPath       string
+	DownPath     string
+	UpChecksum   [32]byte
 	DownChecksum [32]byte
 }
 
@@ -41,11 +41,11 @@ type sourceMapping struct {
 func detectPrototypeShape(ctx context.Context, conn *sql.Conn, database, tableName string) (bool, error) {
 	// Prototype column definitions in order.
 	type protoCol struct {
-		name          string
-		columnType    string // data_type from information_schema
-		extra         string // expected "auto_increment" for id, "" otherwise
-		isNullable    string // "NO" for all prototype columns
-		defaultExpr   string // DEFAULT expression; "" means no default
+		name        string
+		columnType  string // data_type from information_schema
+		extra       string // expected "auto_increment" for id, "" otherwise
+		isNullable  string // "NO" for all prototype columns
+		defaultExpr string // DEFAULT expression; "" means no default
 	}
 	protoCols := []protoCol{
 		{name: "id", columnType: "int", extra: "auto_increment", isNullable: "NO", defaultExpr: ""},
@@ -330,11 +330,11 @@ func findLegacyPair(version, legacyDir string) (upPath, downPath, sourceName str
 	}
 
 	type candidate struct {
-		ver       uint64
-		verStr    string
-		desc      string
-		ext       string // "up" or "down"
-		filename  string
+		ver      uint64
+		verStr   string
+		desc     string
+		ext      string // "up" or "down"
+		filename string
 	}
 
 	// Group by version → description → entries.

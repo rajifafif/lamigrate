@@ -333,11 +333,11 @@ func scanLegacyImportDir(dir string) (*legacyImportPathResult, error) {
 	}
 
 	type rawEntry struct {
-		version     uint64
-		versionStr  string // original digit string including leading zeros
-		desc        string
-		ext         string
-		filename    string
+		version    uint64
+		versionStr string // original digit string including leading zeros
+		desc       string
+		ext        string
+		filename   string
 	}
 
 	// Group files by version → description → entries.
@@ -828,5 +828,3 @@ func unhex(c byte) byte {
 		return 0
 	}
 }
-
-

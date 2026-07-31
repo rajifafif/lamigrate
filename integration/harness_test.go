@@ -27,8 +27,8 @@ const (
 type TestDB struct {
 	t     *testing.T
 	db    *sql.DB
-	DSN   string // full DSN pointing at the test database
-	Name  string // database name
+	DSN   string  // full DSN pointing at the test database
+	Name  string  // database name
 	admin *sql.DB // connection to server root (no database selected)
 }
 

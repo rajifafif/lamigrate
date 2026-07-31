@@ -19,13 +19,13 @@ type MigrationPlan struct {
 // plannedMigration is one entry in a MigrationPlan.
 // The SQL bytes are exact copies retained for execution (§5.5).
 type plannedMigration struct {
-	name      string
-	upPath    string
-	downPath  string
-	upSQL     []byte  // exact bytes, retained for execution
-	downSQL   []byte  // exact bytes, retained for rollback execution
-	upSum     [32]byte
-	downSum   [32]byte
+	name     string
+	upPath   string
+	downPath string
+	upSQL    []byte // exact bytes, retained for execution
+	downSQL  []byte // exact bytes, retained for rollback execution
+	upSum    [32]byte
+	downSum  [32]byte
 }
 
 // toPlanView converts an internal MigrationPlan to a read-only PlanView.

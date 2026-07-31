@@ -237,5 +237,3 @@ func (m *Migrator) removeFailedByRepair(
 ) error {
 	return m.removeRow(ctx, conn, tableName, migration)
 }
-
-

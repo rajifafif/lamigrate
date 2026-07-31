@@ -112,12 +112,12 @@ var requiredStateColumns = []string{
 
 // columnSpec describes the expected properties of a metadata column.
 type columnSpec struct {
-	Name         string
-	DataType     string // base type family, e.g. "varchar", "bigint", "binary"
-	Unsigned     bool   // expected unsigned flag
-	Nullable     bool   // whether NULL is allowed
-	Binary       bool   // for varchar: whether binary collation is required
-	MaxLen       int    // expected max character length (0 = don't check)
+	Name     string
+	DataType string // base type family, e.g. "varchar", "bigint", "binary"
+	Unsigned bool   // expected unsigned flag
+	Nullable bool   // whether NULL is allowed
+	Binary   bool   // for varchar: whether binary collation is required
+	MaxLen   int    // expected max character length (0 = don't check)
 }
 
 // controlColumnSpecs defines the expected type properties for each
