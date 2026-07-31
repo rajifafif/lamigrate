@@ -1,0 +1,39 @@
+# lamigrate Release — GoReleaser automated release workflow
+# Triggered only by version tags (v*). Builds cross-platform binaries,
+# archives, checksums, and SBOMs, then creates a draft GitHub release.
+#
+# Architecture ref: architecture.md §19 (Release and supply-chain architecture)
+# Pre-1.0 experimental. See docs/release-process.md for the full release procedure.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: "GoReleaser Release"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

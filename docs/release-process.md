@@ -86,7 +86,37 @@ git push origin v0.X.Y-experimental
 GoReleaser automates cross-compilation, archiving, checksumming, and
 GitHub release creation.
 
-### Dry-run (no publish)
+### Automated release (CI — recommended)
+
+Pushing a `v*` tag triggers the **Release** workflow
+(`.github/workflows/release.yml`), which runs GoReleaser on GitHub Actions
+and creates a **draft** GitHub release with all cross-platform assets:
+
+```bash
+# 1. Ensure all CI checks are green on the target commit (see Pre-release Checklist)
+# 2. Create and push the annotated tag
+git tag -a v0.X.Y-experimental -m "lamigrate v0.X.Y-experimental"
+git push origin v0.X.Y-experimental
+
+# 3. The Release workflow runs automatically:
+#    - Builds linux/darwin/windows × amd64/arm64 (CGO_ENABLED=0)
+#    - Archives tar.gz (zip for Windows)
+#    - Generates SHA256SUMS and CycloneDX SBOMs
+#    - Creates a DRAFT GitHub release — it is NOT published immediately
+
+# 4. Review the draft release on GitHub:
+#    - Verify all 6 platform archives are present
+#    - Verify SHA256SUMS matches downloaded artifacts
+#    - Review the auto-generated changelog
+#    - Confirm the experimental pre-1.0 disclaimer is present
+# 5. Click "Publish release" when satisfied
+```
+
+**Minimal permissions:** The workflow only requests `contents: write`, which
+is the minimum required for creating releases. `GITHUB_TOKEN` is provided
+automatically by GitHub Actions — no personal tokens needed.
+
+### Dry-run (local, no publish)
 
 ```bash
 make release
@@ -95,7 +125,7 @@ make release
 This runs `goreleaser release --snapshot --clean --skip=publish` and
 produces artifacts in `dist/` without creating a GitHub release.
 
-### Full release
+### Full release (manual fallback)
 
 ```bash
 # Ensure GITHUB_TOKEN is set with repo + contents permissions
@@ -104,6 +134,10 @@ export GITHUB_TOKEN=ghp_...
 # GoReleaser creates a draft GitHub release with checksums and SBOMs
 goreleaser release --clean
 ```
+
+> **Note:** The manual fallback exists for edge cases where CI cannot run
+> (e.g., workflow file changes not yet merged). In normal operation, use
+> the tag-triggered automated workflow above.
 
 ### Build matrix
 
