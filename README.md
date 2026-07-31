@@ -4,6 +4,8 @@ Laravel-style database migrations for Go + MySQL.
 
 Timestamp-based filenames, batch-tracked rollback, pretend mode — the workflow you know from `php artisan migrate`, now in Go.
 
+> Development status: the current code is experimental. `architecture.md` defines the production target, and `docs/TASKS.md` contains the dependency-aware multi-agent implementation backlog. Do not treat either document as evidence that all production-safety guarantees are already implemented.
+
 ## Features
 
 - **Timestamp filenames** — `20260730094235_create_users.up.sql` (no collision, sortable)
