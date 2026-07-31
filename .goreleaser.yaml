@@ -63,7 +63,7 @@ release:
   github:
     owner: rajifafif
     name: lamigrate
-  draft: true
+  draft: false
   prerelease: auto
   name_template: "lamigrate {{ .Tag }} — experimental pre-1.0"
   header: |

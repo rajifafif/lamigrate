@@ -198,8 +198,8 @@ func TestVersionSubprocess(t *testing.T) {
 		t.Fatalf("version command failed: %v\n%s", err, output)
 	}
 	got := strings.TrimSpace(string(output))
-	if got != "0.1.1-experimental" {
-		t.Fatalf("version output = %q, want %q", got, "0.1.1-experimental")
+	if got != "0.1.2-experimental" {
+		t.Fatalf("version output = %q, want %q", got, "0.1.2-experimental")
 	}
 }
 
@@ -531,8 +531,8 @@ func TestSplitArgsYesDoesNotConsumeCommand(t *testing.T) {
 
 func TestVersionString(t *testing.T) {
 	t.Parallel()
-	if version != "0.1.1-experimental" {
-		t.Errorf("version = %q, want %q", version, "0.1.1-experimental")
+	if version != "0.1.2-experimental" {
+		t.Errorf("version = %q, want %q", version, "0.1.2-experimental")
 	}
 }
 
@@ -617,8 +617,8 @@ func TestHumanOutput(t *testing.T) {
 	}
 
 	got := strings.TrimSpace(string(output))
-	if got != "0.1.1-experimental" {
-		t.Fatalf("version output = %q, want %q", got, "0.1.1-experimental")
+	if got != "0.1.2-experimental" {
+		t.Fatalf("version output = %q, want %q", got, "0.1.2-experimental")
 	}
 	if strings.HasPrefix(got, "{") {
 		t.Fatalf("human output should not be JSON: %s", got)

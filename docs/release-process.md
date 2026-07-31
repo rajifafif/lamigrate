@@ -90,7 +90,7 @@ GitHub release creation.
 
 Pushing a `v*` tag triggers the **Release** workflow
 (`.github/workflows/release.yml`), which runs GoReleaser on GitHub Actions
-and creates a **draft** GitHub release with all cross-platform assets:
+and publishes a tagged GitHub release with all cross-platform assets:
 
 ```bash
 # 1. Ensure all CI checks are green on the target commit (see Pre-release Checklist)
@@ -102,14 +102,13 @@ git push origin v0.X.Y-experimental
 #    - Builds linux/darwin/windows × amd64/arm64 (CGO_ENABLED=0)
 #    - Archives tar.gz (zip for Windows)
 #    - Generates SHA256SUMS and CycloneDX SBOMs
-#    - Creates a DRAFT GitHub release — it is NOT published immediately
+#    - Publishes the tagged experimental GitHub release
 
-# 4. Review the draft release on GitHub:
+# 4. Verify the published release on GitHub:
 #    - Verify all 6 platform archives are present
 #    - Verify SHA256SUMS matches downloaded artifacts
 #    - Review the auto-generated changelog
 #    - Confirm the experimental pre-1.0 disclaimer is present
-# 5. Click "Publish release" when satisfied
 ```
 
 **Minimal permissions:** The workflow only requests `contents: write`, which
@@ -131,7 +130,7 @@ produces artifacts in `dist/` without creating a GitHub release.
 # Ensure GITHUB_TOKEN is set with repo + contents permissions
 export GITHUB_TOKEN=ghp_...
 
-# GoReleaser creates a draft GitHub release with checksums and SBOMs
+# GoReleaser publishes a tagged GitHub release with checksums and SBOMs
 goreleaser release --clean
 ```
 

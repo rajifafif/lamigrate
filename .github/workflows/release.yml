@@ -1,6 +1,6 @@
 # lamigrate Release — GoReleaser automated release workflow
 # Triggered only by version tags (v*). Builds cross-platform binaries,
-# archives, checksums, and SBOMs, then creates a draft GitHub release.
+# archives, checksums, and SBOMs, then publishes a tagged GitHub release.
 #
 # Architecture ref: architecture.md §19 (Release and supply-chain architecture)
 # Pre-1.0 experimental. See docs/release-process.md for the full release procedure.
