@@ -104,6 +104,27 @@ lamigrate status
 lamigrate -config config.yaml status
 ```
 
+### seed / db:seed
+
+Execute SQL seed files. `db:seed` is the Laravel-style alias for `seed`.
+
+```text
+lamigrate [global-flags] seed [--class SeederName]
+lamigrate [global-flags] db:seed [--class SeederName]
+```
+
+Seed files default to `sql/seeders`; override the directory with `-seed-dir` or `--seed-dir` before the command. All regular `*.sql` files run in lexicographic filename order. `--class RolesSeeder` runs only `RolesSeeder.sql`.
+
+Seed execution is not tracked in migration metadata, so seed SQL should be repeatable (for example, use `INSERT ... ON DUPLICATE KEY UPDATE`). The command uses the normal migration advisory lock and stops at the first SQL failure. With `--pretend`, it validates and displays the selected file names without executing SQL.
+
+**Examples:**
+
+```bash
+lamigrate -config config.yaml db:seed
+lamigrate -config config.yaml -seed-dir database/seeders seed --class RolesSeeder
+lamigrate -config config.yaml --pretend seed
+```
+
 ### migration create
 
 Create a new migration file pair. This is an **offline** command -- no database connection required.

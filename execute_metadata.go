@@ -431,6 +431,10 @@ func cleanupSessionState(
 		`SELECT THREAD_ID FROM performance_schema.threads ` +
 		`WHERE PROCESSLIST_ID = CONNECTION_ID())`
 	if err := conn.QueryRowContext(ctx, txQuery).Scan(&activeTxCount); err != nil {
+		// Soft-fail if user lacks SELECT on performance_schema.
+		if strings.Contains(err.Error(), "1142") || strings.Contains(err.Error(), "denied") {
+			return nil
+		}
 		return fmt.Errorf("cleanup: read in_transaction: %w", err)
 	}
 	if activeTxCount != 0 {

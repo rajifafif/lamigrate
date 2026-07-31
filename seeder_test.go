@@ -28,9 +28,10 @@ func TestPrepareSeedFilesOrdersAndSelectsClass(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	for name, sql := range map[string]string{
-		"20_roles.sql": "SELECT 20;",
-		"10_users.sql": "SELECT 10;",
-		"notes.txt":    "ignored",
+		"20_roles.sql":    "SELECT 20;",
+		"10_users.sql":    "SELECT 10;",
+		"RolesSeeder.sql": "SELECT 30;",
+		"notes.txt":       "ignored",
 	} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(sql), 0o600); err != nil {
 			t.Fatal(err)
@@ -45,17 +46,17 @@ func TestPrepareSeedFilesOrdersAndSelectsClass(t *testing.T) {
 	if class != "" {
 		t.Fatalf("class = %q, want empty", class)
 	}
-	got := []string{files[0].name, files[1].name}
-	if want := []string{"10_users.sql", "20_roles.sql"}; !reflect.DeepEqual(got, want) {
+	got := []string{files[0].name, files[1].name, files[2].name}
+	if want := []string{"10_users.sql", "20_roles.sql", "RolesSeeder.sql"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("files = %v, want %v", got, want)
 	}
 
-	files, class, err = m.prepareSeedFiles(SeedRequest{Directory: dir, Class: "20_roles"})
+	files, class, err = m.prepareSeedFiles(SeedRequest{Directory: dir, Class: "RolesSeeder"})
 	if err != nil {
 		t.Fatalf("prepareSeedFiles(--class) error = %v", err)
 	}
-	if class != "20_roles" || len(files) != 1 || files[0].name != "20_roles.sql" {
-		t.Fatalf("class=%q files=%v, want 20_roles.sql only", class, files)
+	if class != "RolesSeeder" || len(files) != 1 || files[0].name != "RolesSeeder.sql" {
+		t.Fatalf("class=%q files=%v, want RolesSeeder.sql only", class, files)
 	}
 }
 
