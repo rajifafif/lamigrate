@@ -252,5 +252,5 @@ Users must treat every `v0.X.Y-experimental` tag as potentially breaking.
 - [architecture.md §22](../architecture.md#22-definition-of-production-ready) — definition of production ready
 - [docs/ci-evidence.md](ci-evidence.md) — CI matrix evidence and §22 → CI job mapping
 - [docs/release-process.md](release-process.md) — release tagging, GoReleaser, and checksums
-- [docs/TASKS.md](TASKS.md) — implementation backlog
+- All 25 implementation tasks complete (see git log)
 - [docs/known-limitations.md](known-limitations.md) — documented limitations

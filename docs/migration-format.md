@@ -304,4 +304,4 @@ Legacy files are not mixed into normal timestamp discovery. They are only scanne
 
 ## Task Card Reference
 
-The migration source contract is defined in [LM-011](task-cards/LM-011-migration-source-contract.md). The architecture specification is in [architecture.md](../architecture.md) section 8.
+The migration source contract and checksums are implemented. The architecture specification is in [architecture.md](../architecture.md) section 8.

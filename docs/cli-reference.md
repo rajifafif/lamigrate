@@ -455,4 +455,4 @@ This warning is informational and does not affect operation.
 
 ## Task Card Reference
 
-The CLI foundation is defined in [LM-012](task-cards/LM-012-cli-foundation.md) and the operational CLI with JSON output is [LM-030](task-cards/LM-030-operational-cli-json.md). Signal handling and exit codes are part of the CLI contract in [architecture.md](../architecture.md) sections 14.
+Signal handling, exit codes, JSON output, and confirmation prompts are implemented. The CLI contract is in [architecture.md](../architecture.md) sections 14.

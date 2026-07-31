@@ -386,7 +386,6 @@ The tool works but has not yet been independently reviewed for production use:
 | Document | Description |
 |----------|-------------|
 | [architecture.md](architecture.md) | Target production architecture and safety invariants |
-| [docs/TASKS.md](docs/TASKS.md) | Dependency-aware implementation backlog |
 | [docs/configuration.md](docs/configuration.md) | Configuration reference (YAML, .env, precedence) |
 | [docs/cli-reference.md](docs/cli-reference.md) | Complete CLI command reference |
 | [docs/migration-format.md](docs/migration-format.md) | Migration file format and contract |

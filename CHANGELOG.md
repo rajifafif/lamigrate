@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- Task board and multi-agent execution backlog (docs/TASKS.md)
+- Production architecture implementation (all 25 tasks complete)
 - Architecture target document (architecture.md)
 - Offline migration creation with timestamp naming
 - MySQL integration via go-sql-driver/mysql

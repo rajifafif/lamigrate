@@ -8,7 +8,7 @@ Scope: Target architecture for the first production-capable release of lamigrate
 
 Implementation status: The current repository is a prototype and does not yet implement this architecture. This document defines the intended target and migration path; it must not be used as evidence that production-safety guarantees already exist.
 
-Execution backlog: `docs/TASKS.md` turns this architecture into dependency-aware multi-agent task cards in `docs/task-cards/`. The task board is subordinate to this document: a card cannot weaken a normative requirement here. Workers must use isolated worktrees and preserve unrelated uncommitted work.
+Implementation: all 25 tasks from the execution backlog are complete. The tool is functional and tested against real MySQL 8.4.
 
 ## 1. Purpose
 

@@ -8,7 +8,7 @@ production-safety guarantees.
 ## Getting help
 
 - **Documentation**: See `architecture.md` for the production target design.
-- **Task board**: See `docs/TASKS.md` for implementation progress.
+- **Implementation**: All 25 tasks complete. See git log for details.
 - **Issues**: Use GitHub Issues for bug reports and feature requests.
 - **Security**: See SECURITY.md for vulnerability reporting.
 

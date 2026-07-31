@@ -6,7 +6,7 @@ Thank you for considering contributing to lamigrate.
 
 **lamigrate is experimental software.** It has not reached v1.0.0 and does not
 claim production-safety guarantees. See `architecture.md` for the target
-production architecture and `docs/TASKS.md` for the implementation backlog.
+production architecture.
 
 Do not use lamigrate in production until an independent reviewer certifies a
 release candidate against the production architecture.

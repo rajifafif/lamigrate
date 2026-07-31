@@ -259,4 +259,4 @@ LAMIGRATE_DSN="root@tcp(localhost:3306)/myapp_dev?parseTime=true&multiStatements
 
 ## Task Card Reference
 
-The configuration policy is defined in [LM-003](task-cards/LM-003-config-policy-proposal.md) and implemented in [LM-013](task-cards/LM-013-config-source-implementation.md). The architecture requirements are in [architecture.md](../architecture.md) sections 15 and §5.8.
+The configuration policy and implementation are complete. The architecture requirements are in [architecture.md](../architecture.md) sections 15 and §5.8.
