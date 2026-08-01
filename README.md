@@ -29,11 +29,20 @@ Timestamp-based filenames, batch-tracked rollback, pretend mode -- the workflow 
 go install github.com/rajifafif/lamigrate/cmd/lamigrate@latest
 ```
 
-Requires Go 1.24 or later. Verify the installation:
+Requires Go 1.24 or later. To install an exact release, replace `@latest` with a tag:
 
 ```bash
+go install github.com/rajifafif/lamigrate/cmd/lamigrate@v0.1.2-experimental
+```
+
+`go install` writes binaries to `$(go env GOBIN)` when set, otherwise to `$(go env GOPATH)/bin`. Ensure that directory is on your shell `PATH` before running the command:
+
+```bash
+export PATH="$(go env GOPATH)/bin:$PATH"
 lamigrate version
 ```
+
+For zsh, make it persistent by adding the export line to `~/.zshrc`, then start a new terminal or run `source ~/.zshrc` and `rehash`.
 
 Cross-builds are available for Linux, macOS, and Windows on amd64 and arm64. CI evidence for all six platform/architecture pairs is in [docs/ci-evidence.md](docs/ci-evidence.md).
 
