@@ -20,7 +20,7 @@ import (
 // single named migration.
 type RepairRequest struct {
 	// Operation is the repair action: "show", "mark-applied",
-	// "mark-rolled-back", or "remove-failed".
+	// "mark-rolled-back", "remove-failed", or "forget".
 	Operation string
 
 	// Migration is the canonical migration ID to repair.
@@ -186,6 +186,10 @@ func (m *Migrator) Repair(ctx context.Context, request RepairRequest) (Result, e
 			if err := m.removeFailedByRepair(ctx, conn, m.tableName, request.Migration); err != nil {
 				return err
 			}
+		case "forget":
+			if err := m.forgetByRepair(ctx, conn, m.tableName, request.Migration); err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("%w: unknown repair operation %q", ErrInvalidConfig, request.Operation)
 		}
@@ -309,6 +313,28 @@ func buildRepairView(
 		view.ConfirmationRequired = true
 		view.OperatorInstructions = removeFailedInstructions(state)
 
+	case "forget":
+		// Forget an orphaned applied migration whose source file no
+		// longer exists in the checked-out branch. This is the recovery
+		// path for the "checksum drift: source file not found" hard-block.
+		// The operator must verify the migration's schema was never
+		// created (or has been manually compensated) before confirming.
+		view.CurrentState = state
+		if state != "applied" {
+			return nil, fmt.Errorf(
+				"%w: forget requires state 'applied', got %q",
+				ErrRepairRejected, state,
+			)
+		}
+		view.ProposedTransition = "applied (orphaned, missing source) -> row absent"
+		view.ConfirmationRequired = true
+		view.OperatorInstructions = []string{
+			"BEFORE confirming, verify the migration's source file no longer exists in the current branch (status shows MISSING_SOURCE).",
+			"Inspect the database to verify the migration's schema was never created, or that its effects have been manually compensated.",
+			"If the schema exists and is needed, restore the source file first; forget only removes the metadata record.",
+			"After confirmation, the migration record will be deleted from metadata and up/down/reset will be unblocked.",
+		}
+
 	default:
 		return nil, fmt.Errorf("%w: unknown repair operation %q", ErrInvalidConfig, request.Operation)
 	}
@@ -319,7 +345,7 @@ func buildRepairView(
 // validateRepairRequest checks the repair request for basic validity.
 func validateRepairRequest(request RepairRequest) error {
 	switch request.Operation {
-	case "show", "mark-applied", "mark-rolled-back", "remove-failed":
+	case "show", "mark-applied", "mark-rolled-back", "remove-failed", "forget":
 		// valid
 	default:
 		return fmt.Errorf(

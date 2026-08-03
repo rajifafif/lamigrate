@@ -35,6 +35,18 @@ type Options struct {
 	// MaxFileSize is the maximum migration file size in bytes.
 	// Default 1 MB.
 	MaxFileSize int64
+
+	// IgnoreMissingSource relaxes the global integrity check so that an
+	// applied migration whose source file no longer exists in the
+	// directory ("orphaned" migration, reported as MISSING_SOURCE) does not
+	// block up/down/reset. Useful in a shared-database workflow where each
+	// developer applies their feature-branch migrations to a common DB and
+	// those source files later disappear from the trunk. When set, the
+	// missing-source check is skipped but ALL other safety checks remain:
+	// dirty states still block, and any source that IS present and has a
+	// different checksum is still a drift error. Orphaned metadata rows are
+	// left in place (not deleted). Default false.
+	IgnoreMissingSource bool
 }
 
 // ---------- Step limiting ----------
@@ -165,6 +177,8 @@ type Migrator struct {
 	tableName string        // validated table name
 	lockTime  time.Duration // validated lock timeout
 	maxFile   int64         // validated max file size
+	// ignoreMissingSource mirrors Options.IgnoreMissingSource.
+	ignoreMissingSource bool
 }
 
 // SessionCapabilities holds validated session information captured by

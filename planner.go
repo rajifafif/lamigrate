@@ -73,7 +73,7 @@ func (m *Migrator) buildUpPlan(ctx context.Context, conn *sql.Conn, caps *Sessio
 	}
 
 	// 4. Global integrity check: verify ALL applied records.
-	if err := globalDriftCheck(applied, sourceMap); err != nil {
+	if err := globalDriftCheck(applied, sourceMap, m.ignoreMissingSource); err != nil {
 		return nil, err
 	}
 
@@ -153,7 +153,7 @@ func (m *Migrator) buildDownPlan(ctx context.Context, conn *sql.Conn, caps *Sess
 	}
 
 	// 3. Global drift check on ALL applied records.
-	if err := globalDriftCheck(applied, sourceMap); err != nil {
+	if err := globalDriftCheck(applied, sourceMap, m.ignoreMissingSource); err != nil {
 		return nil, err
 	}
 
@@ -239,7 +239,7 @@ func (m *Migrator) buildResetPlan(ctx context.Context, conn *sql.Conn, caps *Ses
 	}
 
 	// 3. Global drift check on ALL applied records.
-	if err := globalDriftCheck(applied, sourceMap); err != nil {
+	if err := globalDriftCheck(applied, sourceMap, m.ignoreMissingSource); err != nil {
 		return nil, err
 	}
 
@@ -294,9 +294,16 @@ func (m *Migrator) buildResetPlan(ctx context.Context, conn *sql.Conn, caps *Ses
 // its source file checksums. It also detects orphaned records (applied
 // but source file missing) and dirty states.
 //
+// When ignoreMissingSource is true, applied rows whose source file is
+// absent are SKIPPED (not treated as errors) — this supports shared-DB
+// workflows where feature-branch migrations are applied to a common
+// database and later removed from the trunk. All other checks remain
+// enforced: dirty states still block, and any source that IS present with
+// a different checksum is still a drift error.
+//
 // This is the global integrity check: ALL applied records are verified,
 // not just selected ones (architecture §11.1 step 4).
-func globalDriftCheck(applied []AppliedMigration, sourceMap map[string]*migrationFile) error {
+func globalDriftCheck(applied []AppliedMigration, sourceMap map[string]*migrationFile, ignoreMissingSource bool) error {
 	for _, a := range applied {
 		// Reject dirty rows.
 		if isDirtyState(a.State) {
@@ -313,6 +320,12 @@ func globalDriftCheck(applied []AppliedMigration, sourceMap map[string]*migratio
 
 		src, ok := sourceMap[a.Migration]
 		if !ok {
+			// Source file missing.
+			if ignoreMissingSource {
+				// Intentional in a shared-DB workflow: skip this orphaned
+				// record and continue checking the rest.
+				continue
+			}
 			return fmt.Errorf(
 				"%w: source file not found for applied migration %s",
 				ErrChecksumDrift, a.Migration,

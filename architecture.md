@@ -632,10 +632,11 @@ MySQL cannot prove that an interrupted DDL operation either fully happened or di
 A target repair command supports operations such as:
 
 ```text
-lamigrate repair show
-lamigrate repair mark-applied <migration> --yes
-lamigrate repair mark-rolled-back <migration> --yes
-lamigrate repair remove-failed <migration> --yes
+lamigrate repair show <migration>
+lamigrate repair mark-applied <migration> --yes --reason ...
+lamigrate repair mark-rolled-back <migration> --yes --reason ...
+lamigrate repair remove-failed <migration> --yes --reason ...
+lamigrate repair forget <migration> --yes --reason ...
 ```
 
 Repair requirements:
@@ -649,6 +650,15 @@ Repair requirements:
 - requires a free-text operator reason for every mutation and includes it in the structured result;
 - records a structured result suitable for an operator audit log;
 - documents the database inspection the operator must perform first.
+
+For a shared/remote database where every developer applies feature-branch
+migrations to a common DB and those source files later disappear from the trunk,
+the recurring "MISSING_SOURCE" accumulation can instead be handled by the
+`Options.IgnoreMissingSource` flag (CLI: `--ignore-missing-source`). When set,
+the global integrity check skips applied rows whose source file no longer exists,
+so `up`/`down`/`reset` are not blocked. It does NOT delete the orphaned metadata
+row. All other checks remain enforced: dirty states still block, and a source
+that IS present with a different checksum is still a drift error.
 
 Checksum drift is not repairable by acknowledgment in metadata schema v1. The operator must restore the exact applied source bytes. This prevents a repair command from normalizing unauthorized migration edits.
 

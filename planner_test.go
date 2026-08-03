@@ -38,7 +38,7 @@ func TestBuildUpPlanRejectsDirtyState(t *testing.T) {
 			},
 		}
 
-		err := globalDriftCheck(applied, sourceMap)
+		err := globalDriftCheck(applied, sourceMap, false)
 		if err == nil {
 			t.Errorf("globalDriftCheck should reject dirty state %q", state)
 			continue
@@ -79,7 +79,7 @@ func TestBuildUpPlanRejectsDrift(t *testing.T) {
 		},
 	}
 
-	err = globalDriftCheck(applied, sourceMap)
+	err = globalDriftCheck(applied, sourceMap, false)
 	if err == nil {
 		t.Fatal("globalDriftCheck should detect checksum drift")
 	}
@@ -106,7 +106,7 @@ func TestBuildUpPlanRejectsMissingSource(t *testing.T) {
 		},
 	}
 
-	err := globalDriftCheck(applied, sourceMap)
+	err := globalDriftCheck(applied, sourceMap, false)
 	if err == nil {
 		t.Fatal("globalDriftCheck should reject missing source files")
 	}
@@ -128,6 +128,62 @@ func TestBuildUpPlanRejectsDuplicateTimestamp(t *testing.T) {
 	err := checkDuplicateTimestamps(dups)
 	if err == nil {
 		t.Fatal("checkDuplicateTimestamps should reject duplicate timestamps")
+	}
+}
+
+// TestIgnoreMissingSourceSkipsOrphan verifies that when the ignore
+// flag is set, an applied migration with no source file does not block,
+// while a genuine checksum drift on a present file still does.
+func TestIgnoreMissingSourceSkipsOrphan(t *testing.T) {
+	t.Parallel()
+
+	// Orphaned applied row — no matching source file.
+	orphan := []AppliedMigration{
+		{
+			Migration:  "20260730120000_create_users",
+			SourceKind: "timestamp",
+			State:      "applied",
+			Batch:      1,
+			IsBaseline: false,
+		},
+	}
+	emptySourceMap := make(map[string]*migrationFile)
+
+	// Without the flag, it blocks.
+	if err := globalDriftCheck(orphan, emptySourceMap, false); err == nil {
+		t.Fatal("ignored=false should block orphaned applied migration")
+	}
+	// With the flag, it is skipped.
+	if err := globalDriftCheck(orphan, emptySourceMap, true); err != nil {
+		t.Fatalf("ignored=true should skip orphan, got: %v", err)
+	}
+
+	// Drift on a PRESENT source is still a hard error even with the flag.
+	dir := t.TempDir()
+	writeTestMigration(t, dir, "20260730120000_create_users", "CREATE TABLE users (id INT);", "DROP TABLE users;")
+	files, err := scanMigrations(dir)
+	if err != nil {
+		t.Fatalf("scanMigrations: %v", err)
+	}
+	sourceMap := make(map[string]*migrationFile, len(files))
+	for i := range files {
+		sourceMap[files[i].Name] = &files[i]
+	}
+	drifted := []AppliedMigration{
+		{
+			Migration:  "20260730120000_create_users",
+			SourceKind: "timestamp",
+			State:      "applied",
+			Batch:      1,
+			IsBaseline: false,
+			UpChecksum: []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+				16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31},
+		},
+	}
+	if err := globalDriftCheck(drifted, sourceMap, true); err == nil {
+		t.Fatal("checksum drift must still be detected even with ignoreMissingSource=true")
+	} else if !errors.Is(err, ErrChecksumDrift) {
+		t.Fatalf("expected ErrChecksumDrift, got: %v", err)
 	}
 }
 
@@ -170,7 +226,7 @@ func TestBuildUpPlanReadsAllApplied(t *testing.T) {
 	}
 
 	// Even though both are "applied", drift in the second is detected.
-	err = globalDriftCheck(applied, sourceMap)
+	err = globalDriftCheck(applied, sourceMap, false)
 	if err == nil {
 		t.Fatal("globalDriftCheck should detect drift in any applied record")
 	}
@@ -298,7 +354,7 @@ func TestStatusReportDirtyBlocked(t *testing.T) {
 		},
 	}
 
-	err = globalDriftCheck(applied, sourceMap)
+	err = globalDriftCheck(applied, sourceMap, false)
 	if err == nil {
 		t.Fatal("globalDriftCheck should block when dirty state present")
 	}

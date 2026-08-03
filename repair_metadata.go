@@ -237,3 +237,33 @@ func (m *Migrator) removeFailedByRepair(
 ) error {
 	return m.removeRow(ctx, conn, tableName, migration)
 }
+
+// forgetByRepair removes an orphaned applied migration row whose source
+// file no longer exists in the checked-out branch. This is the recovery
+// path for the "checksum drift: source file not found for applied
+// migration" hard-block. It is only legal on a clean "applied" state and
+// deletes only the metadata row — the operator must have verified the
+// migration's schema was never created (or was manually compensated).
+func (m *Migrator) forgetByRepair(
+	ctx context.Context,
+	conn *sql.Conn,
+	tableName, migration string,
+) error {
+	// Verify the row is in clean "applied" state before deleting.
+	var state string
+	err := conn.QueryRowContext(ctx,
+		fmt.Sprintf("SELECT state FROM `%s` WHERE migration = ?", tableName),
+		migration,
+	).Scan(&state)
+	if err != nil {
+		return fmt.Errorf("forgetByRepair: read state: %w", err)
+	}
+	if state != "applied" {
+		return fmt.Errorf(
+			"%w: forgetByRepair requires state 'applied', got %q",
+			ErrRepairRejected, state,
+		)
+	}
+
+	return m.removeRow(ctx, conn, tableName, migration)
+}

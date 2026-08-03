@@ -11,15 +11,16 @@ import (
 	"github.com/rajifafif/lamigrate"
 )
 
-const version = "0.1.2-experimental"
+const version = "0.2.0-experimental"
 
 func main() {
 	globalFlags, cmdName, cmdArgs := splitArgs(os.Args[1:])
 
-	dir, dsn, configPath, table, pretend, yes, help, jsonOut, err := parseGlobalFlags(globalFlags)
+	dir, dsn, configPath, table, pretend, yes, help, jsonOut, ignoreMissing, err := parseGlobalFlags(globalFlags)
 	if err != nil {
 		fatal(err)
 	}
+	reason, cmdArgs := parseReasonFlag(cmdArgs)
 
 	if *help {
 		printUsage()
@@ -110,8 +111,9 @@ func main() {
 
 	// --- Create migrator using new API ---
 	opts := lamigrate.Options{
-		Directory: *dir,
-		TableName: *table,
+		Directory:           *dir,
+		TableName:           *table,
+		IgnoreMissingSource: *ignoreMissing,
 	}
 	m, err := lamigrate.OpenMySQL(*dsn, opts)
 	if err != nil {
@@ -184,6 +186,11 @@ func main() {
 			handleCommandError(cmdName, *jsonOut, err)
 		}
 		renderStatus(os.Stdout, report, *jsonOut)
+
+	case "repair":
+		if err := runRepair(ctx, m, cmdArgs, *jsonOut, *yes, reason); err != nil {
+			handleCommandError("repair", *jsonOut, err)
+		}
 	}
 }
 
@@ -275,6 +282,11 @@ Global flags (must appear BEFORE command):
              Show SQL without executing
   -y, --yes
              Skip confirmation prompts (reset, import)
+  --ignore-missing-source
+             Ignore applied migrations whose source file no longer
+             exists (MISSING_SOURCE), so up/down/reset are not blocked.
+             Other safety checks (dirty state, checksum drift on present
+             files) still apply. Use for shared-database workflows.
   --json    Output structured JSON (experimental, version 1)
   -h, --help
              Show this help text
@@ -284,6 +296,10 @@ Commands:
   down [--step N]  Rollback N from last batch (all in batch if omitted)
   reset            Rollback ALL migrations (requires confirmation)
   status           Show applied vs pending
+  repair <op> <migration> [--yes] [--reason ...]
+                     Repair migration metadata (show | mark-applied |
+                     mark-rolled-back | remove-failed | forget). Requires
+                     --yes and --reason for mutations.
   migration create <name>
                      Create a Laravel-like .up.sql/.down.sql pair (no DSN)
   make <name>       Compatibility alias for migration create
@@ -300,6 +316,9 @@ Examples:
   lamigrate -dsn "..." status
   lamigrate -dir sql/migrations migration create create_users_table
   lamigrate -dsn "..." -y import
+  lamigrate -dsn "..." repair show 20260101120000_create_users
+  lamigrate -dsn "..." -y repair remove-failed 20260101120000_create_users \
+             --reason "file removed from branch"
   lamigrate --json version
   lamigrate -config config.yaml up
 `)
@@ -319,6 +338,7 @@ func splitArgs(args []string) (globalFlags []string, cmdName string, cmdArgs []s
 			arg == "-y" || arg == "--yes" ||
 			arg == "-h" || arg == "--help" ||
 			arg == "--json" ||
+			arg == "--ignore-missing-source" ||
 			strings.Contains(arg, "=") {
 			continue
 		}
@@ -330,7 +350,7 @@ func splitArgs(args []string) (globalFlags []string, cmdName string, cmdArgs []s
 	return globalFlags, "", nil
 }
 
-func parseGlobalFlags(args []string) (dir, dsn, configPath, table *string, pretend, yes, help, jsonOut *bool, err error) {
+func parseGlobalFlags(args []string) (dir, dsn, configPath, table *string, pretend, yes, help, jsonOut, ignoreMissing *bool, err error) {
 	dirVal := "sql/migrations"
 	dsnVal := ""
 	configVal := ""
@@ -339,31 +359,32 @@ func parseGlobalFlags(args []string) (dir, dsn, configPath, table *string, prete
 	yesVal := false
 	helpVal := false
 	jsonVal := false
+	ignoreMissingVal := false
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch {
 		case arg == "-dir":
 			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "-") {
-				return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -dir requires a value")
+				return nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -dir requires a value")
 			}
 			i++
 			dirVal = args[i]
 		case arg == "-dsn":
 			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "-") {
-				return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -dsn requires a value")
+				return nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -dsn requires a value")
 			}
 			i++
 			dsnVal = args[i]
 		case arg == "-config" || arg == "--config":
 			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "-") {
-				return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -config requires a value")
+				return nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -config requires a value")
 			}
 			i++
 			configVal = args[i]
 		case arg == "-table":
 			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "-") {
-				return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -table requires a value")
+				return nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -table requires a value")
 			}
 			i++
 			tableVal = args[i]
@@ -375,6 +396,8 @@ func parseGlobalFlags(args []string) (dir, dsn, configPath, table *string, prete
 			helpVal = true
 		case arg == "--json":
 			jsonVal = true
+		case arg == "--ignore-missing-source":
+			ignoreMissingVal = true
 		case strings.HasPrefix(arg, "-dir="):
 			dirVal = strings.TrimPrefix(arg, "-dir=")
 		case strings.HasPrefix(arg, "-dsn="):
@@ -386,16 +409,16 @@ func parseGlobalFlags(args []string) (dir, dsn, configPath, table *string, prete
 		case strings.HasPrefix(arg, "-table="):
 			tableVal = strings.TrimPrefix(arg, "-table=")
 		default:
-			return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("unknown global flag: %s", arg)
+			return nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("unknown global flag: %s", arg)
 		}
 	}
 	if strings.TrimSpace(dirVal) == "" {
-		return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -dir requires a non-empty value")
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -dir requires a non-empty value")
 	}
 	if strings.TrimSpace(tableVal) == "" {
-		return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -table requires a non-empty value")
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -table requires a non-empty value")
 	}
-	return &dirVal, &dsnVal, &configVal, &tableVal, &pretendVal, &yesVal, &helpVal, &jsonVal, nil
+	return &dirVal, &dsnVal, &configVal, &tableVal, &pretendVal, &yesVal, &helpVal, &jsonVal, &ignoreMissingVal, nil
 }
 
 func parseN(args []string) ([]int, error) {
@@ -448,11 +471,103 @@ func parseMigrationCreate(cmdName string, cmdArgs []string) (name string, matche
 
 func isDatabaseCommand(name string) bool {
 	switch name {
-	case "up", "down", "reset", "status", "import":
+	case "up", "down", "reset", "status", "import", "repair":
 		return true
 	default:
 		return false
 	}
+}
+
+// parseReasonFlag extracts --reason <text> (or --reason=<text>) from the
+// command args, returning the reason value and the remaining args with the
+// flag and its value removed. Only the last occurrence wins.
+func parseReasonFlag(args []string) (string, []string) {
+	reason := ""
+	rest := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--reason" {
+			if i+1 < len(args) {
+				reason = args[i+1]
+				i++
+			}
+			continue
+		}
+		if strings.HasPrefix(arg, "--reason=") {
+			reason = strings.TrimPrefix(arg, "--reason=")
+			continue
+		}
+		rest = append(rest, arg)
+	}
+	return reason, rest
+}
+
+// runRepair executes the repair subcommand:
+//
+//	lamigrate repair show <migration>
+//	lamigrate repair mark-applied <migration> [--yes] [--reason ...]
+//	lamigrate repair mark-rolled-back <migration> [--yes] [--reason ...]
+//	lamigrate repair remove-failed <migration> [--yes] [--reason ...]
+//	lamigrate repair forget <migration> [--yes] [--reason ...]
+//
+// "show" is read-only; the mutation operations require confirmation and a
+// reason. Confirmation may be supplied either as the global flag before the
+// command (-y / --yes) or as a command-level flag after the migration name.
+func runRepair(ctx context.Context, m *lamigrate.Migrator, args []string, jsonOut, yes bool, reason string) error {
+	operation, migration, yes, err := parseRepairArgs(args, yes)
+	if err != nil {
+		return err
+	}
+
+	request := lamigrate.RepairRequest{
+		Operation: operation,
+		Migration: migration,
+		Yes:       yes,
+		Reason:    reason,
+	}
+
+	if operation == "show" {
+		view, err := m.PreviewRepair(ctx, request)
+		if err != nil {
+			return err
+		}
+		renderRepairPlanView(os.Stdout, view, jsonOut)
+		return nil
+	}
+
+	result, err := m.Repair(ctx, request)
+	if err != nil {
+		return err
+	}
+	renderResult(os.Stdout, result, "repair", jsonOut)
+	return nil
+}
+
+// parseRepairArgs validates and parses the repair subcommand arguments.
+// The first two positional args are <operation> and <migration>. Command-level
+// --yes / -y after the migration name are accepted in addition to the global
+// -y / --yes before the command. --reason is handled by parseReasonFlag and is
+// not expected here. Returns the operation, migration, the effective yes flag,
+// and an error for malformed input.
+func parseRepairArgs(args []string, yes bool) (operation, migration string, effectiveYes bool, err error) {
+	if len(args) < 2 {
+		return "", "", yes, fmt.Errorf("usage: lamigrate repair <operation> <migration> [--yes] [--reason ...]")
+	}
+	operation = args[0]
+	migration = args[1]
+	effectiveYes = yes
+	for _, a := range args[2:] {
+		switch a {
+		case "--yes", "-y":
+			effectiveYes = true
+		default:
+			if strings.HasPrefix(a, "-") {
+				return "", "", yes, fmt.Errorf("unexpected flag: %s", a)
+			}
+			return "", "", yes, fmt.Errorf("unexpected argument: %s", a)
+		}
+	}
+	return operation, migration, effectiveYes, nil
 }
 
 // fatal prints the error to stderr and exits with ExitExecution.

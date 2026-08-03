@@ -53,13 +53,14 @@ func NewMySQL(config *mysql.Config, opts Options) (*Migrator, error) {
 	dsn = clone.FormatDSN()
 
 	return &Migrator{
-		dsn:       dsn,
-		config:    clone,
-		directory: validated.Directory,
-		legacyDir: validated.LegacyDir,
-		tableName: validated.TableName,
-		lockTime:  validated.LockTimeout,
-		maxFile:   validated.MaxFileSize,
+		dsn:                 dsn,
+		config:              clone,
+		directory:           validated.Directory,
+		legacyDir:           validated.LegacyDir,
+		tableName:           validated.TableName,
+		lockTime:            validated.LockTimeout,
+		maxFile:             validated.MaxFileSize,
+		ignoreMissingSource: validated.IgnoreMissingSource,
 	}, nil
 }
 

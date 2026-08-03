@@ -41,6 +41,11 @@ func TestValidateRepairRequest(t *testing.T) {
 			wantErr: nil,
 		},
 		{
+			name:    "forget_valid",
+			req:     lm.RepairRequest{Operation: "forget", Migration: "20260101120000_create_users", Yes: true, Reason: "source file removed from branch"},
+			wantErr: nil,
+		},
+		{
 			name:    "empty_operation",
 			req:     lm.RepairRequest{Operation: "", Migration: "20260101120000_create_users"},
 			wantErr: lm.ErrInvalidConfig,

@@ -104,6 +104,83 @@ lamigrate status
 lamigrate -config config.yaml status
 ```
 
+### repair
+
+Repair migration metadata after a failed or interrupted migration, or after a
+source file was removed from the branch. Repair **never executes migration SQL**
+automatically — it only makes legal, conservative metadata transitions on a
+single named migration, and requires explicit `--yes` confirmation and a
+free-text `--reason` for every mutation (`show` is read-only and needs neither).
+
+```text
+lamigrate repair <operation> <migration> [--yes] [--reason ...]
+```
+
+| Argument | Description |
+|----------|-------------|
+| `<operation>` | `show`, `mark-applied`, `mark-rolled-back`, `remove-failed`, or `forget` |
+| `<migration>` | Canonical migration ID (e.g. `20260731094743_create_stock_adjustment_header`) |
+| `--yes` | Required for mutations |
+| `--reason <text>` | Required for mutations. Free-text audit explanation |
+
+**Operations:**
+
+- `show` — prints the current metadata state, expected checksums, and the
+  operator database inspection required before any mutation. Read-only.
+- `mark-applied` — transitions `applying`/`apply_failed` → `applied` (after the
+  operator verifies the SQL actually succeeded).
+- `mark-rolled-back` — removes a dirty rollback row (`rolling_back`/
+  `rollback_failed`), or a clean applied **irreversible** migration after manual
+  compensation.
+- `remove-failed` — deletes a dirty row (`applying`, `apply_failed`) whose SQL
+  had no effect.
+- `forget` — deletes a clean `applied` row whose source file no longer exists in
+  the checked-out branch (orphaned migration, shown as `MISSING_SOURCE`). This
+  is the recovery path for the "checksum drift: source file not found for
+  applied migration" hard-block. The operator must verify the migration's schema
+  was never created (or has been manually compensated) before confirming.
+
+**Missing-source recovery (orphaned migration):**
+
+When a migration was applied from a branch whose SQL files were later removed or
+rewritten (rebase/squash/branch switch), the metadata row remains but the source
+file no longer exists. This surfaces as `MISSING_SOURCE` in `status` and as a
+hard "checksum drift: source file not found" error that blocks `up`/`down`/`reset`
+(the planner conservatively refuses to act on a history it cannot verify).
+
+**In a shared/remote database used by all developers** (feature-branch migrations
+are applied to it and later disappear from the trunk), the cleanest fix is the
+global `--ignore-missing-source` flag. It makes `up`/`down`/`reset` skip the
+missing-source check so nothing blocks — WITHOUT deleting the metadata row and
+without relaxing any other safety check (dirty states still block; checksum
+drift on a source that IS present is still an error):
+
+```bash
+lamigrate --ignore-missing-source up
+lamigrate --ignore-missing-source status     # still lists MISSING_SOURCE rows
+```
+
+**For an explicit one-off removal** (you decided a specific orphaned row should
+be forgotten), use `repair forget` after confirming the migration's schema was
+never created (or has been manually compensated):
+
+```bash
+lamigrate repair show 20260731094543_create_stock_adjustment_header
+lamigrate repair forget 20260731094543_create_stock_adjustment_header \
+  --yes --reason "migration source removed from branch"
+```
+
+After removal, `status` no longer reports `MISSING_SOURCE` for that migration.
+
+**Examples:**
+
+```bash
+lamigrate -config config.yaml repair show 20260731094543_create_stock_adjustment_header
+lamigrate -config config.yaml repair forget 20260731094543_create_stock_adjustment_header \
+  --yes --reason "file removed from branch"
+lamigrate -dsn "..." repair mark-applied 20260731095000_add_column --yes --reason "SQL verified"
+```
+
 ### migration create
 
 Create a new migration file pair. This is an **offline** command -- no database connection required.
@@ -210,6 +287,7 @@ With `--json`, outputs structured JSON:
 | `-table` | -- | string | `migrations` | Tracking table name |
 | `-pretend` | `--pretend` | bool | `false` | Show plan without executing |
 | `-y` | `--yes` | bool | `false` | Skip confirmation prompts |
+| `--ignore-missing-source` | -- | bool | `false` | Skip the missing-source check for orphaned applied migrations (shared-DB workflows) |
 | `--json` | -- | bool | `false` | Output structured JSON (experimental schema v1) |
 | `-h` | `--help` | bool | `false` | Show help text |
 

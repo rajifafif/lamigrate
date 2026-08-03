@@ -111,6 +111,55 @@ func renderStatus(w io.Writer, report lamigrate.StatusReport, jsonOut bool) {
 	fmt.Fprintln(w)
 }
 
+// renderRepairPlanView renders a read-only repair "show" preview to w.
+func renderRepairPlanView(w io.Writer, view lamigrate.RepairPlanView, jsonOut bool) {
+	if jsonOut {
+		data := map[string]interface{}{
+			"operation":             view.Operation,
+			"migration":             view.Migration,
+			"current_state":         view.CurrentState,
+			"batch":                 view.Batch,
+			"up_checksum":           view.UpChecksum,
+			"down_checksum":         view.DownChecksum,
+			"source_name":           view.SourceName,
+			"is_irreversible":       view.IsIrreversible,
+			"proposed_transition":   view.ProposedTransition,
+			"confirmation_required": view.ConfirmationRequired,
+			"operator_instructions": view.OperatorInstructions,
+		}
+		writeJSON(w, "repair", data, nil)
+		return
+	}
+
+	fmt.Fprintf(w, "Migration: %s\n", view.Migration)
+	fmt.Fprintf(w, "Operation: %s\n", view.Operation)
+	fmt.Fprintf(w, "State:     %s\n", view.CurrentState)
+	if view.Batch > 0 {
+		fmt.Fprintf(w, "Batch:     %d\n", view.Batch)
+	}
+	if view.UpChecksum != "" {
+		fmt.Fprintf(w, "Up sum:    %s\n", view.UpChecksum)
+	}
+	if view.DownChecksum != "" {
+		fmt.Fprintf(w, "Down sum:  %s\n", view.DownChecksum)
+	}
+	if view.SourceName != "" {
+		fmt.Fprintf(w, "Source:    %s\n", view.SourceName)
+	}
+	if view.IsIrreversible {
+		fmt.Fprintln(w, "Irreversible: yes")
+	}
+	if view.ProposedTransition != "" {
+		fmt.Fprintf(w, "Proposed:  %s\n", view.ProposedTransition)
+	}
+	for _, line := range view.OperatorInstructions {
+		fmt.Fprintf(w, "  - %s\n", line)
+	}
+	if view.ConfirmationRequired {
+		fmt.Fprintln(w, "Confirm:   --yes required")
+	}
+}
+
 // renderVersion renders version output to w.
 func renderVersion(w io.Writer, jsonOut bool) {
 	if jsonOut {
@@ -189,10 +238,10 @@ func verbPresent(cmd string) string {
 	switch cmd {
 	case "up":
 		return "migrate"
-	case "down":
+	case "down", "reset":
 		return "rollback"
-	case "reset":
-		return "rollback"
+	case "repair":
+		return "repair"
 	default:
 		return "process"
 	}
@@ -203,10 +252,10 @@ func verbPast(cmd string) string {
 	switch cmd {
 	case "up":
 		return "applied"
-	case "down":
+	case "down", "reset":
 		return "rolled back"
-	case "reset":
-		return "rolled back"
+	case "repair":
+		return "repaired"
 	default:
 		return "processed"
 	}

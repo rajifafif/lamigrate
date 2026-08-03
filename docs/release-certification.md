@@ -79,7 +79,7 @@ unmet. Gaps are not hidden — they define the experimental scope.
 
 | Status | MET |
 |--------|-----|
-| Evidence | Full integration test suites against real MySQL 8.0 and 8.4: `TestUpAppliesMigrations`, `TestDownRollbacksLastBatch`, `TestResetRemovesAll`, `TestImportBasicFlow`, `TestRepairMarkApplied`, `TestRepairMarkRolledBack`, `TestRepairRemoveFailed`. Both MySQL versions tested in CI. |
+| Evidence | Full integration test suites against real MySQL 8.0 and 8.4: `TestUpAppliesMigrations`, `TestDownRollbacksLastBatch`, `TestResetRemovesAll`, `TestImportBasicFlow`, `TestRepairMarkApplied`, `TestRepairMarkRolledBack`, `TestRepairRemoveFailed`, `TestRepairForgetApplied`, `TestRepairForgetRejectsNonApplied`, `TestIgnoreMissingSourceLetsUpProceed`. Both MySQL versions tested in CI. |
 
 ### Condition 10: Status detects dirty state, missing files, and checksum drift
 

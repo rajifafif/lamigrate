@@ -822,7 +822,7 @@ func TestDSNPasswordNotInQueryString(t *testing.T) {
 
 func TestIsDatabaseCommand(t *testing.T) {
 	t.Parallel()
-	dbCmds := []string{"up", "down", "reset", "status", "import"}
+	dbCmds := []string{"up", "down", "reset", "status", "import", "repair"}
 	for _, cmd := range dbCmds {
 		if !isDatabaseCommand(cmd) {
 			t.Errorf("isDatabaseCommand(%q) = false, want true", cmd)

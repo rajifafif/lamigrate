@@ -647,3 +647,104 @@ func TestRepairNonExistentMigration(t *testing.T) {
 		t.Fatalf("error = %v, want ErrRepairRejected", err)
 	}
 }
+
+// TestRepairForgetApplied verifies that the "forget" operation removes
+// an orphaned applied migration row whose source file no longer exists.
+func TestRepairForgetApplied(t *testing.T) {
+	tb := newTestDB(t)
+	tb.requireTestDBName()
+
+	dir := t.TempDir()
+	tableName := "migrations"
+
+	// Bootstrap metadata first, then insert a clean applied row (no source
+	// file present in dir) to simulate an orphaned applied migration.
+	bootstrapMetadata(t, tb, tableName)
+	insertDirtyRow(t, tb, tableName, "20260731120001_forget_test", "applied", 1)
+
+	m := newTestMigratorWithDir(t, tb, tableName, dir)
+	ctx := context.Background()
+
+	if state := migrationState(t, tb, tableName, "20260731120001_forget_test"); state != "applied" {
+		t.Fatalf("state = %s, want applied", state)
+	}
+
+	// forget requires a reason and --yes.
+	_, err := m.Repair(ctx, lamigrate.RepairRequest{
+		Operation: "forget",
+		Migration: "20260731120001_forget_test",
+		Yes:       false,
+	})
+	if !errors.Is(err, lamigrate.ErrConfirmationRequired) {
+		t.Fatalf("error = %v, want ErrConfirmationRequired", err)
+	}
+
+	// Execute forget.
+	result, err := m.Repair(ctx, lamigrate.RepairRequest{
+		Operation: "forget",
+		Migration: "20260731120001_forget_test",
+		Yes:       true,
+		Reason:    "source file removed from branch",
+	})
+	if err != nil {
+		t.Fatalf("Repair forget: %v", err)
+	}
+	if result.Command != "repair" {
+		t.Fatalf("result.Command = %q, want 'repair'", result.Command)
+	}
+
+	// Verify the row is gone.
+	var count int
+	err = tb.DB().QueryRow(
+		fmt.Sprintf("SELECT COUNT(*) FROM `%s` WHERE migration = ?", tableName),
+		"20260731120001_forget_test",
+	).Scan(&count)
+	if err != nil {
+		t.Fatalf("count migration row: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("migration row count = %d, want 0", count)
+	}
+}
+
+// TestRepairForgetRejectsDirtyState verifies that forget is only legal
+// on a clean "applied" state.
+func TestRepairForgetRejectsNonApplied(t *testing.T) {
+	tb := newTestDB(t)
+	tb.requireTestDBName()
+
+	dir := t.TempDir()
+	tableName := "migrations"
+
+	bootstrapMetadata(t, tb, tableName)
+	insertDirtyRow(t, tb, tableName, "20260731120001_forget_dirty", "apply_failed", 9)
+
+	m := newTestMigratorWithDir(t, tb, tableName, dir)
+	ctx := context.Background()
+
+	_, err := m.Repair(ctx, lamigrate.RepairRequest{
+		Operation: "forget",
+		Migration: "20260731120001_forget_dirty",
+		Yes:       true,
+		Reason:    "test",
+	})
+	if err == nil {
+		t.Fatal("expected error for forget on non-applied state")
+	}
+	if !errors.Is(err, lamigrate.ErrRepairRejected) {
+		t.Fatalf("error = %v, want ErrRepairRejected", err)
+	}
+
+	// Row must remain.
+	var count int
+	err = tb.DB().QueryRow(
+		fmt.Sprintf("SELECT COUNT(*) FROM `%s` WHERE migration = ?", tableName),
+		"20260731120001_forget_dirty",
+	).Scan(&count)
+	if err != nil {
+		t.Fatalf("count migration row: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("migration row count = %d, want 1", count)
+	}
+}

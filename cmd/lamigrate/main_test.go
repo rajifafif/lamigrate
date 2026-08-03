@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -77,7 +78,7 @@ func TestSplitArgsMissingValueDoesNotPanic(t *testing.T) {
 func TestParseGlobalFlagsRejectsUnknownAndMissing(t *testing.T) {
 	t.Parallel()
 	for _, args := range [][]string{{"-dri", "/tmp"}, {"-dir"}, {"-dir="}, {"-dir", "-pretend"}} {
-		if _, _, _, _, _, _, _, _, err := parseGlobalFlags(args); err == nil {
+		if _, _, _, _, _, _, _, _, _, err := parseGlobalFlags(args); err == nil {
 			t.Errorf("parseGlobalFlags(%v) unexpectedly succeeded", args)
 		}
 	}
@@ -86,7 +87,7 @@ func TestParseGlobalFlagsRejectsUnknownAndMissing(t *testing.T) {
 func TestParseGlobalFlagsAcceptsPretendSpellings(t *testing.T) {
 	t.Parallel()
 	for _, flag := range []string{"-pretend", "--pretend"} {
-		_, _, _, _, pretend, _, _, _, err := parseGlobalFlags([]string{flag})
+		_, _, _, _, pretend, _, _, _, _, err := parseGlobalFlags([]string{flag})
 		if err != nil || !*pretend {
 			t.Fatalf("flag=%q pretend=%v err=%v", flag, pretend, err)
 		}
@@ -198,8 +199,8 @@ func TestVersionSubprocess(t *testing.T) {
 		t.Fatalf("version command failed: %v\n%s", err, output)
 	}
 	got := strings.TrimSpace(string(output))
-	if got != "0.1.2-experimental" {
-		t.Fatalf("version output = %q, want %q", got, "0.1.2-experimental")
+	if got != "0.2.0-experimental" {
+		t.Fatalf("version output = %q, want %q", got, "0.2.0-experimental")
 	}
 }
 
@@ -284,22 +285,22 @@ func TestHelpAndYesAreBooleanGlobalFlags(t *testing.T) {
 
 func TestParseGlobalFlagsYesAndHelp(t *testing.T) {
 	t.Parallel()
-	_, _, _, _, _, yes, help, _, err := parseGlobalFlags([]string{"-y"})
+	_, _, _, _, _, yes, help, _, _, err := parseGlobalFlags([]string{"-y"})
 	if err != nil || !*yes || *help {
 		t.Fatalf("-y: yes=%v help=%v err=%v", yes, help, err)
 	}
 
-	_, _, _, _, _, yes, help, _, err = parseGlobalFlags([]string{"--yes"})
+	_, _, _, _, _, yes, help, _, _, err = parseGlobalFlags([]string{"--yes"})
 	if err != nil || !*yes || *help {
 		t.Fatalf("--yes: yes=%v help=%v err=%v", yes, help, err)
 	}
 
-	_, _, _, _, _, yes, help, _, err = parseGlobalFlags([]string{"-h"})
+	_, _, _, _, _, yes, help, _, _, err = parseGlobalFlags([]string{"-h"})
 	if err != nil || *yes || !*help {
 		t.Fatalf("-h: yes=%v help=%v err=%v", yes, help, err)
 	}
 
-	_, _, _, _, _, yes, help, _, err = parseGlobalFlags([]string{"--help"})
+	_, _, _, _, _, yes, help, _, _, err = parseGlobalFlags([]string{"--help"})
 	if err != nil || *yes || !*help {
 		t.Fatalf("--help: yes=%v help=%v err=%v", yes, help, err)
 	}
@@ -531,8 +532,8 @@ func TestSplitArgsYesDoesNotConsumeCommand(t *testing.T) {
 
 func TestVersionString(t *testing.T) {
 	t.Parallel()
-	if version != "0.1.2-experimental" {
-		t.Errorf("version = %q, want %q", version, "0.1.2-experimental")
+	if version != "0.2.0-experimental" {
+		t.Errorf("version = %q, want %q", version, "0.2.0-experimental")
 	}
 }
 
@@ -617,8 +618,8 @@ func TestHumanOutput(t *testing.T) {
 	}
 
 	got := strings.TrimSpace(string(output))
-	if got != "0.1.2-experimental" {
-		t.Fatalf("version output = %q, want %q", got, "0.1.2-experimental")
+	if got != "0.2.0-experimental" {
+		t.Fatalf("version output = %q, want %q", got, "0.2.0-experimental")
 	}
 	if strings.HasPrefix(got, "{") {
 		t.Fatalf("human output should not be JSON: %s", got)
@@ -874,8 +875,136 @@ func TestAllCommandsJSON(t *testing.T) {
 
 func TestParseGlobalFlagsAcceptsJSON(t *testing.T) {
 	t.Parallel()
-	_, _, _, _, _, _, _, jsonOut, err := parseGlobalFlags([]string{"--json"})
+	_, _, _, _, _, _, _, jsonOut, _, err := parseGlobalFlags([]string{"--json"})
 	if err != nil || !*jsonOut {
 		t.Fatalf("--json: jsonOut=%v err=%v", jsonOut, err)
+	}
+}
+
+func TestParseGlobalFlagsAcceptsIgnoreMissingSource(t *testing.T) {
+	t.Parallel()
+	_, _, _, _, _, _, _, _, ignoreMissing, err := parseGlobalFlags([]string{"--ignore-missing-source"})
+	if err != nil || !*ignoreMissing {
+		t.Fatalf("--ignore-missing-source: ignoreMissing=%v err=%v", ignoreMissing, err)
+	}
+}
+
+func TestParseReasonFlag(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		args []string
+		want string
+		rest []string
+	}{
+		{
+			name: "space_separated",
+			args: []string{"remove-failed", "20260101120000_create_users", "--yes", "--reason", "file removed from branch"},
+			want: "file removed from branch",
+			rest: []string{"remove-failed", "20260101120000_create_users", "--yes"},
+		},
+		{
+			name: "equals_form",
+			args: []string{"remove-failed", "20260101120000_create_users", "--reason=manual cleanup"},
+			want: "manual cleanup",
+			rest: []string{"remove-failed", "20260101120000_create_users"},
+		},
+		{
+			name: "no_reason",
+			args: []string{"show", "20260101120000_create_users"},
+			want: "",
+			rest: []string{"show", "20260101120000_create_users"},
+		},
+		{
+			name: "last_occurrence_wins",
+			args: []string{"mark-applied", "m", "--reason", "first", "--reason", "second"},
+			want: "second",
+			rest: []string{"mark-applied", "m"},
+		},
+		{
+			name: "reason_at_end_without_value",
+			args: []string{"remove-failed", "m", "--reason"},
+			want: "",
+			rest: []string{"remove-failed", "m"},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, rest := parseReasonFlag(tc.args)
+			if got != tc.want {
+				t.Errorf("parseReasonFlag(%v) reason = %q, want %q", tc.args, got, tc.want)
+			}
+			if !reflect.DeepEqual(rest, tc.rest) {
+				t.Errorf("parseReasonFlag(%v) rest = %v, want %v", tc.args, rest, tc.rest)
+			}
+		})
+	}
+}
+
+func TestRunRepairRequiresOperationAndMigration(t *testing.T) {
+	t.Parallel()
+
+	// Too few args: usage error.
+	_, _, _, err := parseRepairArgs([]string{"remove-failed"}, false)
+	if err == nil {
+		t.Fatal("parseRepairArgs with 1 arg should fail")
+	}
+	if !strings.Contains(err.Error(), "usage: lamigrate repair") {
+		t.Errorf("expected usage error, got: %v", err)
+	}
+}
+
+func TestRunRepairRejectsUnknownFlagInArgs(t *testing.T) {
+	t.Parallel()
+
+	// A stray flag (not --yes/-y) after the operation/migration should be rejected.
+	_, _, _, err := parseRepairArgs([]string{"show", "m", "--bogus"}, false)
+	if err == nil {
+		t.Fatal("parseRepairArgs with unexpected flag should fail")
+	}
+	if !strings.Contains(err.Error(), "unexpected flag") {
+		t.Errorf("expected unexpected-flag error, got: %v", err)
+	}
+}
+
+func TestRunRepairRejectsUnexpectedArgument(t *testing.T) {
+	t.Parallel()
+
+	// A stray positional after operation/migration should be rejected.
+	_, _, _, err := parseRepairArgs([]string{"show", "m", "extra"}, false)
+	if err == nil {
+		t.Fatal("parseRepairArgs with extra positional should fail")
+	}
+	if !strings.Contains(err.Error(), "unexpected argument") {
+		t.Errorf("expected unexpected-argument error, got: %v", err)
+	}
+}
+
+func TestParseRepairArgsAcceptsCommandLevelYes(t *testing.T) {
+	t.Parallel()
+
+	// Command-level --yes / -y after the migration name must be accepted and
+	// flip the yes flag on, in addition to the global before-command flag.
+	op, mig, yes, err := parseRepairArgs([]string{"forget", "m", "--yes"}, false)
+	if err != nil {
+		t.Fatalf("parseRepairArgs: %v", err)
+	}
+	if op != "forget" || mig != "m" || !yes {
+		t.Fatalf("got op=%q mig=%q yes=%v", op, mig, yes)
+	}
+
+	_, _, yes, err = parseRepairArgs([]string{"forget", "m", "-y"}, false)
+	if err != nil || !yes {
+		t.Fatalf("-y: err=%v yes=%v", err, yes)
+	}
+
+	// Global yes remains effective.
+	op, mig, yes, err = parseRepairArgs([]string{"forget", "m"}, true)
+	if err != nil || op != "forget" || mig != "m" || !yes {
+		t.Fatalf("global yes: err=%v op=%q mig=%q yes=%v", err, op, mig, yes)
 	}
 }

@@ -32,7 +32,7 @@ go install github.com/rajifafif/lamigrate/cmd/lamigrate@latest
 Requires Go 1.24 or later. To install an exact release, replace `@latest` with a tag:
 
 ```bash
-go install github.com/rajifafif/lamigrate/cmd/lamigrate@v0.1.2-experimental
+go install github.com/rajifafif/lamigrate/cmd/lamigrate@v0.2.0-experimental
 ```
 
 `go install` writes binaries to `$(go env GOBIN)` when set, otherwise to `$(go env GOPATH)/bin`. Ensure that directory is on your shell `PATH` before running the command:
@@ -140,6 +140,11 @@ lamigrate -dir sql/migrations migration create create_users_table
 # Import legacy numbered files (one-time)
 lamigrate -config config.yaml -y import
 
+# Repair missing-source/dirty metadata (requires --yes and --reason)
+lamigrate -config config.yaml repair show 20260101120000_create_users
+lamigrate -config config.yaml repair forget 20260101120000_create_users \
+  --yes --reason "migration source removed from branch"
+
 # JSON output
 lamigrate --json version
 ```
@@ -228,6 +233,8 @@ func main() {
         Directory: "sql/migrations",
         TableName: "migrations",     // default
         LockTimeout: 30 * time.Second, // default
+        // IgnoreMissingSource: true, // shared-DB workflow: allow up/down/reset
+        //                          // even when an applied source file is gone
     }
 
     m, err := lamigrate.OpenMySQL("user:pass@tcp(localhost:3306)/mydb", opts)
