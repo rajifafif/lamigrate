@@ -14,6 +14,8 @@ Timestamp-based filenames, batch-tracked rollback, pretend mode -- the workflow 
 
 - **Timestamp filenames** -- `20260730094235_create_users.up.sql` (no collision, sortable)
 - **Batch tracking** -- rollback by batch, not by version number
+- **Selective rollback** -- rollback by name (`down <name>`) or batch number (`down --batch N`)
+- **Refresh** -- rollback + re-apply in one step (`refresh`, `refresh --step N`, `refresh <name>`)
 - **Pretend mode** -- see what would happen without executing (`--pretend`)
 - **Checksums** -- SHA-256 checksums detect file drift after application
 - **Status reporting** -- applied, pending, baseline, dirty, drift detection
@@ -95,7 +97,8 @@ lamigrate [global-flags] <command> [command-args]
 | Command | Description |
 |---------|-------------|
 | `up [--step N]` | Apply next N pending migrations (all if omitted) |
-| `down [--step N]` | Rollback N from last batch (all in batch if omitted) |
+| `down [--step N] [--batch N] <name>` | Rollback latest batch, specific batch, or to named migration |
+| `refresh [--step N] <name>` | Rollback + re-apply (requires confirmation) |
 | `reset` | Rollback ALL migrations (requires confirmation or `--yes`) |
 | `status` | Show applied vs pending migrations |
 | `migration create <name>` | Create a `.up.sql`/`.down.sql` pair (no DSN required) |
@@ -254,10 +257,10 @@ func main() {
     result, err = m.Up(ctx, limit)
 
     // Rollback last batch
-    result, err = m.Down(ctx, lamigrate.All())
+    result, err = m.Down(ctx, lamigrate.DownAll())
 
     // Rollback 2 from last batch
-    limit, _ = lamigrate.Steps(2)
+    limit, _ = lamigrate.DownSteps(2)
     result, err = m.Down(ctx, limit)
 
     // Rollback everything

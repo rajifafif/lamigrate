@@ -124,7 +124,7 @@ func createRepairTestSetup(t *testing.T) (*TestDB, *lamigrate.Migrator, string) 
 
 	// Bootstrap metadata.
 	ctx := context.Background()
-	if _, err := m.Up(ctx, lamigrate.All()); err != nil {
+	if _, err := m.Up(ctx, lamigrate.DownAll()); err != nil {
 		// This should be a no-op since there are no migrations.
 		// It just bootstraps the metadata tables.
 		t.Logf("bootstrap Up returned (expected noop): %v", err)

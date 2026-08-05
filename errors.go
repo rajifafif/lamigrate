@@ -63,4 +63,16 @@ var (
 	// ErrRepairRejected indicates that the repair operation was
 	// rejected because the migration is not in the expected dirty state.
 	ErrRepairRejected = errors.New("lamigrate: repair rejected")
+
+	// ErrMigrationNotFoundInLatestBatch indicates that the named migration
+	// is not in the latest batch (for selective down by-name).
+	ErrMigrationNotFoundInLatestBatch = errors.New("lamigrate: migration not found in latest batch")
+
+	// ErrBatchNotLatest indicates that the requested batch is not the latest
+	// applied batch (for selective down by-batch).
+	ErrBatchNotLatest = errors.New("lamigrate: batch is not the latest")
+
+	// ErrRefreshNothingToRollback indicates that there are no applied
+	// migrations to refresh.
+	ErrRefreshNothingToRollback = errors.New("lamigrate: nothing to refresh")
 )

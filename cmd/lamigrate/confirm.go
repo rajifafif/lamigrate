@@ -43,6 +43,15 @@ func ConfirmRepair(yes bool) {
 	confirmOrAbort("This will modify migration metadata. Continue?")
 }
 
+// ConfirmRefresh prompts for confirmation before refreshing all migrations.
+// If yes is true, the prompt is skipped.
+func ConfirmRefresh(yes bool) {
+	if yes {
+		return
+	}
+	confirmOrAbort("This will rollback all migrations and re-apply. Continue?")
+}
+
 // confirmOrAbort reads a y/n answer from stdin. On any answer other
 // than y/Y/yes/YES (case-insensitive, trimmed) the process exits with
 // ExitUsage. Non-interactive (piped/CI) stdin requires --yes or aborts.

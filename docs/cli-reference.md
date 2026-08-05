@@ -41,25 +41,66 @@ lamigrate -config config.yaml --pretend up    # Dry run
 
 ### down
 
-Rollback applied migrations from the last batch.
+Rollback applied migrations from the last batch, or target a specific migration
+or batch number.
 
 ```text
-lamigrate down [--step N]
+lamigrate down [--step N] | [--batch N] | <migration_name>
 ```
 
 | Argument | Description |
 |----------|-------------|
 | `--step N` | Rollback at most N migrations from the latest batch. Must be a positive integer. |
 | `N` (positional) | Backward-compatible alternative to `--step N`. |
+| `--batch N` | Rollback all migrations in batch N. Must be the latest applied batch. |
+| `<migration_name>` | Rollback the named migration and all migrations applied after it in the latest batch. |
 
-Without a limit, rolls back all migrations in the latest batch. With `--pretend`, shows the plan without executing.
+The three modes (`--step`, `--batch`, and `<name>`) are mutually exclusive.
+
+Without any argument, rolls back all migrations in the latest batch. With
+`--pretend`, shows the plan without executing.
 
 **Examples:**
 
 ```bash
 lamigrate -config config.yaml down              # Rollback last batch
 lamigrate -config config.yaml --step 1 down     # Rollback 1 from last batch
+lamigrate -config config.yaml --batch 5 down    # Rollback batch 5 (must be latest)
+lamigrate -config config.yaml down 20260730094235_create_users  # Rollback to name
 lamigrate -config config.yaml --pretend down    # Dry run
+```
+
+### refresh
+
+Rollback and re-apply migrations in a single operation. Useful for development
+iteration — fixing a broken migration and re-running it cleanly.
+
+```text
+lamigrate refresh [--step N] | <migration_name>
+```
+
+| Argument | Description |
+|----------|-------------|
+| `--step N` | Rollback the last N applied migrations (globally across all batches), then re-apply them. If N exceeds total applied, clamps to all. |
+| `<migration_name>` | Rollback ALL applied migrations, then re-apply only up to and including the named migration. |
+
+**Requires confirmation** (`-y`/`--yes` or interactive prompt). This is a
+destructive operation — it temporarily removes schema objects.
+
+Both phases (rollback + re-apply) run within a single advisory-lock session,
+preventing concurrent interference.
+
+**Failure semantics:**
+- Rollback phase fails: stop, report error. State is partially rolled back.
+- Forward phase fails: state is partially refreshed. Recoverable with `lamigrate up`.
+
+**Examples:**
+
+```bash
+lamigrate -config config.yaml -y refresh              # Rollback all + re-apply all
+lamigrate -config config.yaml -y --step 3 refresh      # Rollback 3 + re-apply 3
+lamigrate -config config.yaml -y refresh 20260730094235_create_users  # Re-apply up to name
+lamigrate -config config.yaml --pretend refresh         # Show both plans
 ```
 
 ### reset
@@ -388,12 +429,12 @@ Every JSON response wraps output in this structure:
 | `recovery_required` | Operator intervention needed | 1 |
 | `outcome_unknown` | Metadata commit outcome ambiguous | 1 |
 | `confirmation_required` | `--yes` required for destructive operation | 2 |
-| `invalid_config` | Configuration validation failed | 2 |
+| `invalid_config` | Configuration validation, selective-rollback target, or refresh target error | 2 |
 | `execution_error` | Catch-all for other errors | 1 |
 
 ### Command-Specific Data
 
-#### up / down / reset (execution result)
+#### up / down / reset / refresh (execution result)
 
 ```json
 {
@@ -409,6 +450,33 @@ Every JSON response wraps output in this structure:
   ],
   "errors": [],
   "count": 1
+}
+```
+
+#### refresh (execution result)
+
+```json
+{
+  "command": "refresh",
+  "rollback": { "migrated": [...], "errors": [], "count": 2 },
+  "apply": { "migrated": [...], "errors": [], "count": 2 },
+  "rb_count": 2,
+  "ap_count": 2
+}
+```
+
+#### refresh (pretend / preview)
+
+```json
+{
+  "command": "refresh",
+  "directory": "sql/migrations",
+  "table_name": "migrations",
+  "rollback": ["20260730094235_create_users"],
+  "apply": ["20260730094235_create_users"],
+  "dry_run": true,
+  "rb_count": 1,
+  "ap_count": 1
 }
 ```
 

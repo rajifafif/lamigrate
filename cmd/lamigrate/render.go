@@ -186,6 +186,91 @@ func renderMake(w io.Writer, created lamigrate.CreatedMigration, jsonOut bool) {
 	fmt.Fprintf(w, "Template: %s\n", created.Template)
 }
 
+// renderRefreshResult renders a refresh execution result to w.
+func renderRefreshResult(w io.Writer, result lamigrate.RefreshResult, jsonOut bool) {
+	if jsonOut {
+		data := map[string]interface{}{
+			"command":   "refresh",
+			"rollback":  result.Rollback,
+			"apply":     result.Apply,
+			"rb_count":  len(result.Rollback.Migrated),
+			"ap_count":  len(result.Apply.Migrated),
+		}
+		writeJSON(w, "refresh", data, nil)
+		return
+	}
+
+	// Rollback phase.
+	for _, m := range result.Rollback.Migrated {
+		fmt.Fprintf(w, "Rolled back %s (batch %d)\n", m.Name, m.Batch)
+	}
+	if len(result.Rollback.Errors) > 0 {
+		for _, e := range result.Rollback.Errors {
+			fmt.Fprintf(w, "Error %s: %v\n", e.Name, e.Error)
+		}
+	}
+
+	// Apply phase.
+	for _, m := range result.Apply.Migrated {
+		fmt.Fprintf(w, "Applied %s (batch %d)\n", m.Name, m.Batch)
+	}
+	if len(result.Apply.Errors) > 0 {
+		for _, e := range result.Apply.Errors {
+			fmt.Fprintf(w, "Error %s: %v\n", e.Name, e.Error)
+		}
+	}
+
+	total := len(result.Rollback.Migrated) + len(result.Apply.Migrated)
+	if total > 0 {
+		fmt.Fprintf(w, "%d migration(s) refreshed.\n", total)
+	} else if len(result.Rollback.Errors) == 0 && len(result.Apply.Errors) == 0 {
+		fmt.Fprintf(w, "Nothing to refresh.\n")
+	}
+}
+
+// renderRefreshPlanView renders a refresh preview to w.
+func renderRefreshPlanView(w io.Writer, plan lamigrate.RefreshPlanView, jsonOut bool) {
+	if jsonOut {
+		data := map[string]interface{}{
+			"command":   plan.Command,
+			"directory": plan.Directory,
+			"table_name": plan.TableName,
+			"rollback":  plan.Rollback,
+			"apply":     plan.Apply,
+			"dry_run":   plan.DryRun,
+			"rb_count":  len(plan.Rollback),
+			"ap_count":  len(plan.Apply),
+		}
+		writeJSON(w, "refresh", data, nil)
+		return
+	}
+
+	if len(plan.Rollback) == 0 && len(plan.Apply) == 0 {
+		fmt.Fprintf(w, "Nothing to refresh.\n")
+		return
+	}
+
+	fmt.Fprintln(w, "WARNING: SQL content may be sensitive.")
+	fmt.Fprintln(w)
+
+	if len(plan.Rollback) > 0 {
+		fmt.Fprintf(w, "Rollback (%d migrations):\n", len(plan.Rollback))
+		for i, name := range plan.Rollback {
+			fmt.Fprintf(w, "  %d. %s\n", i, name)
+		}
+	}
+
+	if len(plan.Apply) > 0 {
+		fmt.Fprintf(w, "\nRe-apply (%d migrations):\n", len(plan.Apply))
+		for i, name := range plan.Apply {
+			fmt.Fprintf(w, "  %d. %s\n", i+1, name)
+		}
+	}
+
+	total := len(plan.Rollback) + len(plan.Apply)
+	fmt.Fprintf(w, "\nPretend: %d migration(s) would be refreshed.\n", total)
+}
+
 // writeJSON writes a JSONOutput to w.
 func writeJSON(w io.Writer, cmdName string, data interface{}, jsonErr *JSONError) {
 	out := JSONOutput{
@@ -228,6 +313,10 @@ func errorCategory(err error) string {
 		return "confirmation_required"
 	case errors.Is(err, lamigrate.ErrInvalidConfig):
 		return "invalid_config"
+	case errors.Is(err, lamigrate.ErrMigrationNotFoundInLatestBatch),
+		errors.Is(err, lamigrate.ErrBatchNotLatest),
+		errors.Is(err, lamigrate.ErrRefreshNothingToRollback):
+		return "invalid_config"
 	default:
 		return "execution_error"
 	}
@@ -240,6 +329,8 @@ func verbPresent(cmd string) string {
 		return "migrate"
 	case "down", "reset":
 		return "rollback"
+	case "refresh":
+		return "refresh"
 	case "repair":
 		return "repair"
 	default:
@@ -254,6 +345,8 @@ func verbPast(cmd string) string {
 		return "applied"
 	case "down", "reset":
 		return "rolled back"
+	case "refresh":
+		return "refreshed"
 	case "repair":
 		return "repaired"
 	default:

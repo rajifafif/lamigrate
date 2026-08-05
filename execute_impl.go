@@ -52,12 +52,16 @@ func (m *Migrator) Up(ctx context.Context, limit StepLimit) (Result, error) {
 	return result, nil
 }
 
-// Down rolls back migrations from the last batch.
+// Down rolls back migrations. The DownTarget controls selection:
+//   - DownAll() or DownSteps(n): rollback from the latest batch.
+//   - DownToName(name): rollback named migration + everything newer in latest batch.
+//   - DownToBatch(n): rollback all migrations in batch n (must be latest).
+//
 // It bootstraps metadata, then acquires the lock, builds the plan,
 // and executes each rollback using the §11.3 protocol.
-func (m *Migrator) Down(ctx context.Context, limit StepLimit) (Result, error) {
-	if err := validateStepLimit(limit); err != nil {
-		return Result{}, err
+func (m *Migrator) Down(ctx context.Context, target DownTarget) (Result, error) {
+	if target.isZero() {
+		target = DownAll()
 	}
 
 	// Bootstrap metadata tables if needed (§9).
@@ -67,7 +71,7 @@ func (m *Migrator) Down(ctx context.Context, limit StepLimit) (Result, error) {
 
 	var result Result
 	err := m.withLockSession(ctx, func(ctx context.Context, conn *sql.Conn, caps *SessionCapabilities) error {
-		plan, err := m.buildDownPlan(ctx, conn, caps, limit)
+		plan, err := m.buildDownPlan(ctx, conn, caps, target)
 		if err != nil {
 			return err
 		}

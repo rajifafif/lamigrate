@@ -11,7 +11,7 @@ import (
 	"github.com/rajifafif/lamigrate"
 )
 
-const version = "0.2.0-experimental"
+const version = "0.3.0-experimental"
 
 func main() {
 	globalFlags, cmdName, cmdArgs := splitArgs(os.Args[1:])
@@ -141,18 +141,18 @@ func main() {
 		}
 
 	case "down":
-		limit, err := resolveLimit(cmdArgs)
+		target, err := resolveDownTarget(cmdArgs)
 		if err != nil {
 			handleCommandError(cmdName, *jsonOut, fmt.Errorf("down: %w", err))
 		}
 		if *pretend {
-			plan, err := m.PreviewDown(ctx, limit)
+			plan, err := m.PreviewDown(ctx, target)
 			if err != nil {
 				handleCommandError(cmdName, *jsonOut, err)
 			}
 			renderPlanView(os.Stdout, plan, cmdName, *jsonOut)
 		} else {
-			result, err := m.Down(ctx, limit)
+			result, err := m.Down(ctx, target)
 			if err != nil {
 				handleCommandError(cmdName, *jsonOut, err)
 			}
@@ -175,6 +175,26 @@ func main() {
 				handleCommandError(cmdName, *jsonOut, err)
 			}
 			renderResult(os.Stdout, result, cmdName, *jsonOut)
+		}
+
+	case "refresh":
+		ConfirmRefresh(*yes)
+		target, err := resolveRefreshTarget(cmdArgs)
+		if err != nil {
+			handleCommandError(cmdName, *jsonOut, fmt.Errorf("refresh: %w", err))
+		}
+		if *pretend {
+			plan, err := m.PreviewRefresh(ctx, target)
+			if err != nil {
+				handleCommandError(cmdName, *jsonOut, err)
+			}
+			renderRefreshPlanView(os.Stdout, plan, *jsonOut)
+		} else {
+			result, err := m.Refresh(ctx, target)
+			if err != nil {
+				handleCommandError(cmdName, *jsonOut, err)
+			}
+			renderRefreshResult(os.Stdout, result, *jsonOut)
 		}
 
 	case "status":
@@ -210,6 +230,10 @@ func exitCodeForError(err error) int {
 	case errors.Is(err, lamigrate.ErrDirtyState),
 		errors.Is(err, lamigrate.ErrChecksumDrift):
 		return ExitDirtyState
+	case errors.Is(err, lamigrate.ErrMigrationNotFoundInLatestBatch),
+		errors.Is(err, lamigrate.ErrBatchNotLatest),
+		errors.Is(err, lamigrate.ErrRefreshNothingToRollback):
+		return ExitUsage
 	default:
 		return ExitExecution
 	}
@@ -237,6 +261,113 @@ func resolveLimit(args []string) (lamigrate.StepLimit, error) {
 		return lamigrate.Steps(ns[0])
 	}
 	return lamigrate.All(), nil
+}
+
+
+// resolveDownTarget parses down command args and returns a DownTarget.
+// Supports: --step N, --batch N, positional name, or bare (All).
+func resolveDownTarget(args []string) (lamigrate.DownTarget, error) {
+	batchVal, remaining, err := parseBatchFlag(args)
+	if err != nil {
+		return lamigrate.DownTarget{}, err
+	}
+
+	stepVal, remaining2, err := parseStepFlag(remaining)
+	if err != nil {
+		return lamigrate.DownTarget{}, err
+	}
+
+	// Mutual exclusivity checks.
+	if batchVal > 0 && stepVal > 0 {
+		return lamigrate.DownTarget{}, fmt.Errorf("--batch and --step are mutually exclusive")
+	}
+
+	if batchVal > 0 {
+		if len(remaining2) > 0 {
+			return lamigrate.DownTarget{}, fmt.Errorf("--batch does not accept additional arguments")
+		}
+		return lamigrate.DownToBatch(batchVal)
+	}
+
+	if stepVal > 0 {
+		if len(remaining2) > 0 {
+			return lamigrate.DownTarget{}, fmt.Errorf("--step and positional name are mutually exclusive")
+		}
+		return lamigrate.DownSteps(stepVal)
+	}
+
+	// Check for positional name (non-numeric arg).
+	if len(remaining2) == 1 {
+		name := remaining2[0]
+		// Detect if it's numeric (old positional step count) or a name.
+		if _, err := strconv.Atoi(name); err != nil {
+			return lamigrate.DownToName(name)
+		}
+		// Numeric: treat as legacy positional step count.
+		n, parseErr := strconv.Atoi(name)
+		if parseErr != nil || n <= 0 {
+			return lamigrate.DownTarget{}, fmt.Errorf("step count must be a positive integer")
+		}
+		return lamigrate.DownSteps(n)
+	}
+
+	if len(remaining2) > 1 {
+		return lamigrate.DownTarget{}, fmt.Errorf("expected at most one argument")
+	}
+
+	return lamigrate.DownAll(), nil
+}
+
+// resolveRefreshTarget parses refresh command args and returns a RefreshTarget.
+func resolveRefreshTarget(args []string) (lamigrate.RefreshTarget, error) {
+	stepVal, remaining, err := parseStepFlag(args)
+	if err != nil {
+		return lamigrate.RefreshTarget{}, err
+	}
+
+	if stepVal > 0 {
+		if len(remaining) > 0 {
+			return lamigrate.RefreshTarget{}, fmt.Errorf("--step and positional name are mutually exclusive")
+		}
+		return lamigrate.RefreshSteps(stepVal)
+	}
+
+	// Check for positional name.
+	if len(remaining) == 1 {
+		return lamigrate.RefreshToName(remaining[0])
+	}
+	if len(remaining) > 1 {
+		return lamigrate.RefreshTarget{}, fmt.Errorf("expected at most one argument")
+	}
+
+	return lamigrate.RefreshAll(), nil
+}
+
+// parseBatchFlag extracts --batch N from args, returning the value and remaining args.
+func parseBatchFlag(args []string) (batch int, rest []string, err error) {
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--batch" {
+			if i+1 >= len(args) {
+				return 0, nil, fmt.Errorf("--batch requires a value")
+			}
+			n, parseErr := strconv.Atoi(args[i+1])
+			if parseErr != nil || n <= 0 {
+				return 0, nil, fmt.Errorf("--batch requires a positive integer")
+			}
+			rest = append(append([]string{}, args[:i]...), args[i+2:]...)
+			return n, rest, nil
+		}
+		if strings.HasPrefix(args[i], "--batch=") {
+			val := strings.TrimPrefix(args[i], "--batch=")
+			n, parseErr := strconv.Atoi(val)
+			if parseErr != nil || n <= 0 {
+				return 0, nil, fmt.Errorf("--batch requires a positive integer")
+			}
+			rest = append(append([]string{}, args[:i]...), args[i+1:]...)
+			return n, rest, nil
+		}
+	}
+	return 0, args, nil
 }
 
 // parseStepFlag extracts --step N from args, returning the value and remaining args.
@@ -293,7 +424,15 @@ Global flags (must appear BEFORE command):
 
 Commands:
   up [--step N]    Apply next N pending migrations (all if omitted)
-  down [--step N]  Rollback N from last batch (all in batch if omitted)
+  down [--step N] | [--batch N] | <name>
+                   Rollback migrations (latest batch).
+                   --step N: at most N from last batch.
+                   --batch N: all of batch N (must be latest).
+                   <name>: named migration + everything newer in latest batch.
+  refresh [--step N] | <name>
+                   Rollback + re-apply migrations (requires confirmation).
+                   --step N: last N migrations (globally).
+                   <name>: rollback all, re-apply up to name.
   reset            Rollback ALL migrations (requires confirmation)
   status           Show applied vs pending
   repair <op> <migration> [--yes] [--reason ...]
@@ -471,7 +610,7 @@ func parseMigrationCreate(cmdName string, cmdArgs []string) (name string, matche
 
 func isDatabaseCommand(name string) bool {
 	switch name {
-	case "up", "down", "reset", "status", "import", "repair":
+	case "up", "down", "reset", "status", "import", "repair", "refresh":
 		return true
 	default:
 		return false

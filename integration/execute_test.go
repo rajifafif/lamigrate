@@ -127,7 +127,7 @@ func TestUpAppliesMigrations(t *testing.T) {
 		"DROP TABLE IF EXISTS alpha;")
 
 	ctx := context.Background()
-	result, err := m.Up(ctx, lamigrate.All())
+	result, err := m.Up(ctx, lamigrate.DownAll())
 	if err != nil {
 		t.Fatalf("Up failed: %v", err)
 	}
@@ -754,7 +754,7 @@ func TestDownWithStepsLimit(t *testing.T) {
 
 	// Down with step=1 should only rollback the last migration (phi).
 	m2 := newTestMigratorWithDir(t, tb, "migrations", dir)
-	step, _ := lamigrate.Steps(1)
+	step, _ := lamigrate.DownSteps(1)
 	result, err := m2.Down(ctx, step)
 	if err != nil {
 		t.Fatalf("Down(step=1): %v", err)

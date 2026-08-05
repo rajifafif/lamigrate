@@ -83,21 +83,15 @@ func TestStepLimitZeroRejectedBeforeConnector(t *testing.T) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}
 
-	_, err = m.Down(ctx, zero)
-	if err == nil {
-		t.Fatal("Down with zero StepLimit expected error")
-	}
+	// Down with zero DownTarget defaults to DownAll (no error).
+	// Note: Down with zero DownTarget defaults to DownAll() and will
+	// attempt a DB connection. Zero DownTarget is valid (not rejected).
+	// PreviewDown with zero DownTarget also defaults to DownAll().
 
 	// PreviewUp must also reject zero.
 	_, err = m.PreviewUp(ctx, zero)
 	if err == nil {
 		t.Fatal("PreviewUp with zero StepLimit expected error")
-	}
-
-	// PreviewDown must also reject zero.
-	_, err = m.PreviewDown(ctx, zero)
-	if err == nil {
-		t.Fatal("PreviewDown with zero StepLimit expected error")
 	}
 }
 
@@ -316,10 +310,10 @@ func TestMigratorNoStdout(t *testing.T) {
 	// Call methods that will return "not implemented" or empty results.
 	// None of them should write to stdout.
 	_, _ = m.PreviewUp(ctx, lm.All())
-	_, _ = m.PreviewDown(ctx, lm.All())
+	_, _ = m.PreviewDown(ctx, lm.DownAll())
 	_, _ = m.PreviewReset(ctx)
 	_, _ = m.Up(ctx, lm.All())
-	_, _ = m.Down(ctx, lm.All())
+	_, _ = m.Down(ctx, lm.DownAll())
 	_, _ = m.Reset(ctx)
 	_, _ = m.Status(ctx)
 

@@ -36,9 +36,9 @@ func (m *Migrator) PreviewUp(ctx context.Context, limit StepLimit) (PlanView, er
 // PreviewDown returns a read-only plan of migrations to roll back.
 // It acquires the advisory lock for read consistency (§5.5, §11.5)
 // but performs no metadata DDL/DML and no migration SQL.
-func (m *Migrator) PreviewDown(ctx context.Context, limit StepLimit) (PlanView, error) {
-	if err := validateStepLimit(limit); err != nil {
-		return PlanView{}, err
+func (m *Migrator) PreviewDown(ctx context.Context, target DownTarget) (PlanView, error) {
+	if target.isZero() {
+		target = DownAll()
 	}
 
 	var view PlanView
@@ -47,7 +47,7 @@ func (m *Migrator) PreviewDown(ctx context.Context, limit StepLimit) (PlanView, 
 			return err
 		}
 
-		plan, err := m.buildDownPlan(ctx, conn, caps, limit)
+		plan, err := m.buildDownPlan(ctx, conn, caps, target)
 		if err != nil {
 			return err
 		}

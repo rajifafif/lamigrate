@@ -238,6 +238,25 @@ For clarity, the following are intentional design decisions, not limitations:
 
 ---
 
+## 11. Newly addressed limitations (v0.3.0)
+
+The following limitations from section 5 have been addressed:
+
+### Selective rollback (§5.6 — "no selective rollback")
+
+`down` now supports `--batch N` and `<migration_name>` targeting in addition to
+`--step N`. Both modes are scoped to the latest batch for safety. Out-of-batch
+rollback is still rejected (by design).
+
+### Refresh command (§5.5 — "no dry-run SQL execution preview")
+
+`refresh` provides a combined rollback + re-apply operation with `--pretend`
+support. It shows both phases (down and up) without executing. `refresh` is
+not exactly "dry-run SQL preview" but covers the most common use case for
+re-running migrations cleanly during development.
+
+---
+
 ## References
 
 - [architecture.md](../architecture.md) — target production architecture

@@ -10,8 +10,8 @@
 //	m, err := lamigrate.New("sql/migrations", dsn)
 //	m.Up(ctx)              // apply all pending
 //	m.Up(ctx, 3)           // apply next 3
-//	m.Down(ctx)            // rollback last batch
-//	m.Down(ctx, 2)         // rollback last 2
+//	m.Down(ctx, lamigrate.DownAll())  // rollback last batch
+//	m.Down(ctx, lamigrate.DownSteps(2))  // rollback last 2
 //	m.Reset(ctx)           // rollback everything
 //	m.Status(ctx)          // []MigrationStatus
 //	lamigrate.CreateMigration("sql/migrations", "create_users_table")

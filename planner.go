@@ -128,10 +128,15 @@ func (m *Migrator) buildUpPlan(ctx context.Context, conn *sql.Conn, caps *Sessio
 	}, nil
 }
 
-// buildDownPlan reads metadata, selects the latest batch for rollback,
-// validates all preflight conditions, reads selected down SQL, and
+// buildDownPlan reads metadata, selects rollback candidates from the latest
+// batch, validates all preflight conditions, reads selected down SQL, and
 // returns an immutable ordered plan.
-func (m *Migrator) buildDownPlan(ctx context.Context, conn *sql.Conn, caps *SessionCapabilities, limit StepLimit) (*MigrationPlan, error) {
+//
+// The DownTarget controls selection:
+//   - Limit (legacy): select from latest batch, apply step limit.
+//   - Name: select the named migration and everything newer in the latest batch.
+//   - Batch: select all migrations in the given batch (must == latestBatch).
+func (m *Migrator) buildDownPlan(ctx context.Context, conn *sql.Conn, caps *SessionCapabilities, target DownTarget) (*MigrationPlan, error) {
 	// 1. Scan and validate the migration directory.
 	sourceFiles, err := scanMigrations(m.directory)
 	if err != nil {
@@ -173,9 +178,31 @@ func (m *Migrator) buildDownPlan(ctx context.Context, conn *sql.Conn, caps *Sess
 		}
 	}
 
-	// 5. Apply limit.
-	selected := applyDownLimit(candidates, limit)
+	// 5. Apply target-based selection.
+	selected := selectDownCandidates(candidates, target, latestBatch)
 	if len(selected) == 0 {
+		// Check for name-not-found: the name exists but in a different batch.
+		if target.kind() == "name" {
+			for _, a := range applied {
+				if a.Migration == target.Name {
+					return nil, fmt.Errorf(
+						"%w: migration %s is in batch %d, not the latest batch (%d)",
+						ErrMigrationNotFoundInLatestBatch, target.Name, a.Batch, latestBatch,
+					)
+				}
+			}
+			return nil, fmt.Errorf(
+				"%w: migration %s is not applied",
+				ErrMigrationNotFoundInLatestBatch, target.Name,
+			)
+		}
+		// Check for batch-not-latest.
+		if target.kind() == "batch" {
+			return nil, fmt.Errorf(
+				"%w: batch %d is not the latest batch (%d)",
+				ErrBatchNotLatest, target.Batch, latestBatch,
+			)
+		}
 		return &MigrationPlan{command: "down"}, nil
 	}
 
@@ -394,6 +421,36 @@ func applyDownLimit(candidates []AppliedMigration, limit StepLimit) []AppliedMig
 		n = len(candidates)
 	}
 	return candidates[:n]
+}
+
+// selectDownCandidates applies a DownTarget to a list of candidates (already in
+// reverse execution order: newest first) from the latest batch.
+func selectDownCandidates(candidates []AppliedMigration, target DownTarget, latestBatch uint64) []AppliedMigration {
+	switch target.kind() {
+	case "name":
+		// Find the named migration in candidates. Candidates are newest-first.
+		// Select candidates[0..found] inclusive: the named migration and everything newer.
+		found := -1
+		for i, c := range candidates {
+			if c.Migration == target.Name {
+				found = i
+				break
+			}
+		}
+		if found < 0 {
+			// Not in the latest batch — find which batch it's in for the error.
+			return nil // caller checks ErrMigrationNotFoundInLatestBatch after this returns empty
+		}
+		return candidates[:found+1]
+	case "batch":
+		// Validate that the requested batch is the latest.
+		if uint64(target.Batch) != latestBatch {
+			return nil
+		}
+		return candidates
+	default: // "limit"
+		return applyDownLimit(candidates, target.Limit)
+	}
 }
 
 // checkDuplicateTimestamps rejects duplicate timestamps in the selected
