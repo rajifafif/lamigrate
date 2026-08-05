@@ -64,7 +64,7 @@ func TestSelectiveDownByName(t *testing.T) {
 		t.Fatalf("expected 3 applied, got %d", len(result.Migrated))
 	}
 
-	// Roll back by name "B". Should roll back C and B (newest-first, down to B).
+	// Roll back by name "B". Single-migration rollback: ONLY B is rolled back.
 	target, err := lamigrate.DownToName("20260101000002_create_beta_table")
 	if err != nil {
 		t.Fatalf("DownToName: %v", err)
@@ -73,19 +73,20 @@ func TestSelectiveDownByName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Down by name: %v", err)
 	}
-	if len(result.Migrated) != 2 {
-		t.Fatalf("expected 2 rolled back (C and B), got %d", len(result.Migrated))
+	if len(result.Migrated) != 1 {
+		t.Fatalf("expected 1 rolled back (only B), got %d", len(result.Migrated))
 	}
-	if result.Migrated[0].Name != "20260101000003_create_gamma_table" {
-		t.Fatalf("first rollback should be gamma, got %s", result.Migrated[0].Name)
-	}
-	if result.Migrated[1].Name != "20260101000002_create_beta_table" {
-		t.Fatalf("second rollback should be beta, got %s", result.Migrated[1].Name)
+	if result.Migrated[0].Name != "20260101000002_create_beta_table" {
+		t.Fatalf("rollback should be beta only, got %s", result.Migrated[0].Name)
 	}
 
 	// Alpha should still exist.
 	if !tableExists(t, tb, "alpha") {
 		t.Fatal("alpha table should still exist after selective down")
+	}
+	// Gamma should ALSO still exist (only B was rolled back).
+	if !tableExists(t, tb, "gamma") {
+		t.Fatal("gamma table should still exist after single-migration down")
 	}
 }
 
