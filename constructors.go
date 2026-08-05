@@ -61,6 +61,7 @@ func NewMySQL(config *mysql.Config, opts Options) (*Migrator, error) {
 		lockTime:            validated.LockTimeout,
 		maxFile:             validated.MaxFileSize,
 		ignoreMissingSource: validated.IgnoreMissingSource,
+		ignoreChecksumDrift:  validated.IgnoreChecksumDrift,
 	}, nil
 }
 

@@ -78,7 +78,7 @@ func TestSplitArgsMissingValueDoesNotPanic(t *testing.T) {
 func TestParseGlobalFlagsRejectsUnknownAndMissing(t *testing.T) {
 	t.Parallel()
 	for _, args := range [][]string{{"-dri", "/tmp"}, {"-dir"}, {"-dir="}, {"-dir", "-pretend"}} {
-		if _, _, _, _, _, _, _, _, _, err := parseGlobalFlags(args); err == nil {
+		if _, _, _, _, _, _, _, _, _, _, err := parseGlobalFlags(args); err == nil {
 			t.Errorf("parseGlobalFlags(%v) unexpectedly succeeded", args)
 		}
 	}
@@ -87,7 +87,7 @@ func TestParseGlobalFlagsRejectsUnknownAndMissing(t *testing.T) {
 func TestParseGlobalFlagsAcceptsPretendSpellings(t *testing.T) {
 	t.Parallel()
 	for _, flag := range []string{"-pretend", "--pretend"} {
-		_, _, _, _, pretend, _, _, _, _, err := parseGlobalFlags([]string{flag})
+		_, _, _, _, pretend, _, _, _, _, _, err := parseGlobalFlags([]string{flag})
 		if err != nil || !*pretend {
 			t.Fatalf("flag=%q pretend=%v err=%v", flag, pretend, err)
 		}
@@ -285,22 +285,22 @@ func TestHelpAndYesAreBooleanGlobalFlags(t *testing.T) {
 
 func TestParseGlobalFlagsYesAndHelp(t *testing.T) {
 	t.Parallel()
-	_, _, _, _, _, yes, help, _, _, err := parseGlobalFlags([]string{"-y"})
+	_, _, _, _, _, yes, help, _, _, _, err := parseGlobalFlags([]string{"-y"})
 	if err != nil || !*yes || *help {
 		t.Fatalf("-y: yes=%v help=%v err=%v", yes, help, err)
 	}
 
-	_, _, _, _, _, yes, help, _, _, err = parseGlobalFlags([]string{"--yes"})
+	_, _, _, _, _, yes, help, _, _, _, err = parseGlobalFlags([]string{"--yes"})
 	if err != nil || !*yes || *help {
 		t.Fatalf("--yes: yes=%v help=%v err=%v", yes, help, err)
 	}
 
-	_, _, _, _, _, yes, help, _, _, err = parseGlobalFlags([]string{"-h"})
+	_, _, _, _, _, yes, help, _, _, _, err = parseGlobalFlags([]string{"-h"})
 	if err != nil || *yes || !*help {
 		t.Fatalf("-h: yes=%v help=%v err=%v", yes, help, err)
 	}
 
-	_, _, _, _, _, yes, help, _, _, err = parseGlobalFlags([]string{"--help"})
+	_, _, _, _, _, yes, help, _, _, _, err = parseGlobalFlags([]string{"--help"})
 	if err != nil || *yes || !*help {
 		t.Fatalf("--help: yes=%v help=%v err=%v", yes, help, err)
 	}
@@ -875,7 +875,7 @@ func TestAllCommandsJSON(t *testing.T) {
 
 func TestParseGlobalFlagsAcceptsJSON(t *testing.T) {
 	t.Parallel()
-	_, _, _, _, _, _, _, jsonOut, _, err := parseGlobalFlags([]string{"--json"})
+	_, _, _, _, _, _, _, jsonOut, _, _, err := parseGlobalFlags([]string{"--json"})
 	if err != nil || !*jsonOut {
 		t.Fatalf("--json: jsonOut=%v err=%v", jsonOut, err)
 	}
@@ -883,7 +883,7 @@ func TestParseGlobalFlagsAcceptsJSON(t *testing.T) {
 
 func TestParseGlobalFlagsAcceptsIgnoreMissingSource(t *testing.T) {
 	t.Parallel()
-	_, _, _, _, _, _, _, _, ignoreMissing, err := parseGlobalFlags([]string{"--ignore-missing-source"})
+	_, _, _, _, _, _, _, _, ignoreMissing, _, err := parseGlobalFlags([]string{"--ignore-missing-source"})
 	if err != nil || !*ignoreMissing {
 		t.Fatalf("--ignore-missing-source: ignoreMissing=%v err=%v", ignoreMissing, err)
 	}

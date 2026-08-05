@@ -38,7 +38,7 @@ func TestBuildUpPlanRejectsDirtyState(t *testing.T) {
 			},
 		}
 
-		err := globalDriftCheck(applied, sourceMap, false)
+		err := globalDriftCheck(applied, sourceMap, false, false)
 		if err == nil {
 			t.Errorf("globalDriftCheck should reject dirty state %q", state)
 			continue
@@ -79,7 +79,7 @@ func TestBuildUpPlanRejectsDrift(t *testing.T) {
 		},
 	}
 
-	err = globalDriftCheck(applied, sourceMap, false)
+	err = globalDriftCheck(applied, sourceMap, false, false)
 	if err == nil {
 		t.Fatal("globalDriftCheck should detect checksum drift")
 	}
@@ -106,7 +106,7 @@ func TestBuildUpPlanRejectsMissingSource(t *testing.T) {
 		},
 	}
 
-	err := globalDriftCheck(applied, sourceMap, false)
+	err := globalDriftCheck(applied, sourceMap, false, false)
 	if err == nil {
 		t.Fatal("globalDriftCheck should reject missing source files")
 	}
@@ -150,11 +150,11 @@ func TestIgnoreMissingSourceSkipsOrphan(t *testing.T) {
 	emptySourceMap := make(map[string]*migrationFile)
 
 	// Without the flag, it blocks.
-	if err := globalDriftCheck(orphan, emptySourceMap, false); err == nil {
+	if err := globalDriftCheck(orphan, emptySourceMap, false, false); err == nil {
 		t.Fatal("ignored=false should block orphaned applied migration")
 	}
 	// With the flag, it is skipped.
-	if err := globalDriftCheck(orphan, emptySourceMap, true); err != nil {
+	if err := globalDriftCheck(orphan, emptySourceMap, true, false); err != nil {
 		t.Fatalf("ignored=true should skip orphan, got: %v", err)
 	}
 
@@ -180,7 +180,7 @@ func TestIgnoreMissingSourceSkipsOrphan(t *testing.T) {
 				16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31},
 		},
 	}
-	if err := globalDriftCheck(drifted, sourceMap, true); err == nil {
+	if err := globalDriftCheck(drifted, sourceMap, true, false); err == nil {
 		t.Fatal("checksum drift must still be detected even with ignoreMissingSource=true")
 	} else if !errors.Is(err, ErrChecksumDrift) {
 		t.Fatalf("expected ErrChecksumDrift, got: %v", err)
@@ -226,7 +226,7 @@ func TestBuildUpPlanReadsAllApplied(t *testing.T) {
 	}
 
 	// Even though both are "applied", drift in the second is detected.
-	err = globalDriftCheck(applied, sourceMap, false)
+	err = globalDriftCheck(applied, sourceMap, false, false)
 	if err == nil {
 		t.Fatal("globalDriftCheck should detect drift in any applied record")
 	}
@@ -354,7 +354,7 @@ func TestStatusReportDirtyBlocked(t *testing.T) {
 		},
 	}
 
-	err = globalDriftCheck(applied, sourceMap, false)
+	err = globalDriftCheck(applied, sourceMap, false, false)
 	if err == nil {
 		t.Fatal("globalDriftCheck should block when dirty state present")
 	}

@@ -35,7 +35,7 @@ func (m *Migrator) buildRefreshPlan(
 	}
 
 	// 3. Global drift check.
-	if err := globalDriftCheck(applied, sourceMap, m.ignoreMissingSource); err != nil {
+	if err := globalDriftCheck(applied, sourceMap, m.ignoreMissingSource, m.ignoreChecksumDrift); err != nil {
 		return nil, err
 	}
 

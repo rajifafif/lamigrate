@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"sort"
 )
 
@@ -73,7 +74,7 @@ func (m *Migrator) buildUpPlan(ctx context.Context, conn *sql.Conn, caps *Sessio
 	}
 
 	// 4. Global integrity check: verify ALL applied records.
-	if err := globalDriftCheck(applied, sourceMap, m.ignoreMissingSource); err != nil {
+	if err := globalDriftCheck(applied, sourceMap, m.ignoreMissingSource, m.ignoreChecksumDrift); err != nil {
 		return nil, err
 	}
 
@@ -158,7 +159,7 @@ func (m *Migrator) buildDownPlan(ctx context.Context, conn *sql.Conn, caps *Sess
 	}
 
 	// 3. Global drift check on ALL applied records.
-	if err := globalDriftCheck(applied, sourceMap, m.ignoreMissingSource); err != nil {
+	if err := globalDriftCheck(applied, sourceMap, m.ignoreMissingSource, m.ignoreChecksumDrift); err != nil {
 		return nil, err
 	}
 
@@ -266,7 +267,7 @@ func (m *Migrator) buildResetPlan(ctx context.Context, conn *sql.Conn, caps *Ses
 	}
 
 	// 3. Global drift check on ALL applied records.
-	if err := globalDriftCheck(applied, sourceMap, m.ignoreMissingSource); err != nil {
+	if err := globalDriftCheck(applied, sourceMap, m.ignoreMissingSource, m.ignoreChecksumDrift); err != nil {
 		return nil, err
 	}
 
@@ -330,7 +331,7 @@ func (m *Migrator) buildResetPlan(ctx context.Context, conn *sql.Conn, caps *Ses
 //
 // This is the global integrity check: ALL applied records are verified,
 // not just selected ones (architecture §11.1 step 4).
-func globalDriftCheck(applied []AppliedMigration, sourceMap map[string]*migrationFile, ignoreMissingSource bool) error {
+func globalDriftCheck(applied []AppliedMigration, sourceMap map[string]*migrationFile, ignoreMissingSource, ignoreChecksumDrift bool) error {
 	for _, a := range applied {
 		// Reject dirty rows.
 		if isDirtyState(a.State) {
@@ -364,11 +365,15 @@ func globalDriftCheck(applied []AppliedMigration, sourceMap map[string]*migratio
 			var storedSum [32]byte
 			copy(storedSum[:], a.UpChecksum)
 			if storedSum != src.UpChecksum {
-				return fmt.Errorf(
-					"%w: up checksum mismatch for %s: stored=%s source=%s",
-					ErrChecksumDrift, a.Migration,
-					checksumHex(storedSum), checksumHex(src.UpChecksum),
-				)
+				if ignoreChecksumDrift {
+					fmt.Fprintf(os.Stderr, "warning: up checksum drift for %s: stored=%s source=%s (ignoring)\n", a.Migration, checksumHex(storedSum), checksumHex(src.UpChecksum))
+				} else {
+					return fmt.Errorf(
+						"%w: up checksum mismatch for %s: stored=%s source=%s",
+						ErrChecksumDrift, a.Migration,
+						checksumHex(storedSum), checksumHex(src.UpChecksum),
+					)
+				}
 			}
 		}
 
@@ -377,11 +382,15 @@ func globalDriftCheck(applied []AppliedMigration, sourceMap map[string]*migratio
 			var storedDown [32]byte
 			copy(storedDown[:], a.DownChecksum)
 			if storedDown != src.DownChecksum {
-				return fmt.Errorf(
-					"%w: down checksum mismatch for %s: stored=%s source=%s",
-					ErrChecksumDrift, a.Migration,
-					checksumHex(storedDown), checksumHex(src.DownChecksum),
-				)
+				if ignoreChecksumDrift {
+					fmt.Fprintf(os.Stderr, "warning: down checksum drift for %s: stored=%s source=%s (ignoring)\n", a.Migration, checksumHex(storedDown), checksumHex(src.DownChecksum))
+				} else {
+					return fmt.Errorf(
+						"%w: down checksum mismatch for %s: stored=%s source=%s",
+						ErrChecksumDrift, a.Migration,
+						checksumHex(storedDown), checksumHex(src.DownChecksum),
+					)
+				}
 			}
 		}
 	}

@@ -16,7 +16,7 @@ const version = "0.3.0-experimental"
 func main() {
 	globalFlags, cmdName, cmdArgs := splitArgs(os.Args[1:])
 
-	dir, dsn, configPath, table, pretend, yes, help, jsonOut, ignoreMissing, err := parseGlobalFlags(globalFlags)
+	dir, dsn, configPath, table, pretend, yes, help, jsonOut, ignoreMissing, ignoreDrift, err := parseGlobalFlags(globalFlags)
 	if err != nil {
 		fatal(err)
 	}
@@ -113,7 +113,8 @@ func main() {
 	opts := lamigrate.Options{
 		Directory:           *dir,
 		TableName:           *table,
-		IgnoreMissingSource: *ignoreMissing,
+		IgnoreMissingSource:   *ignoreMissing,
+		IgnoreChecksumDrift:  *ignoreDrift,
 	}
 	m, err := lamigrate.OpenMySQL(*dsn, opts)
 	if err != nil {
@@ -418,6 +419,11 @@ Global flags (must appear BEFORE command):
              exists (MISSING_SOURCE), so up/down/reset are not blocked.
              Other safety checks (dirty state, checksum drift on present
              files) still apply. Use for shared-database workflows.
+  --ignore-checksum-drift
+             Ignore checksum mismatches between applied metadata and
+             source files. A warning is printed to stderr instead of
+             blocking. All other safety checks remain. Use for
+             recovering from modified migration files.
   --json    Output structured JSON (experimental, version 1)
   -h, --help
              Show this help text
@@ -478,6 +484,7 @@ func splitArgs(args []string) (globalFlags []string, cmdName string, cmdArgs []s
 			arg == "-h" || arg == "--help" ||
 			arg == "--json" ||
 			arg == "--ignore-missing-source" ||
+			arg == "--ignore-checksum-drift" ||
 			strings.Contains(arg, "=") {
 			continue
 		}
@@ -489,7 +496,7 @@ func splitArgs(args []string) (globalFlags []string, cmdName string, cmdArgs []s
 	return globalFlags, "", nil
 }
 
-func parseGlobalFlags(args []string) (dir, dsn, configPath, table *string, pretend, yes, help, jsonOut, ignoreMissing *bool, err error) {
+func parseGlobalFlags(args []string) (dir, dsn, configPath, table *string, pretend, yes, help, jsonOut, ignoreMissing, ignoreDrift *bool, err error) {
 	dirVal := "sql/migrations"
 	dsnVal := ""
 	configVal := ""
@@ -499,31 +506,32 @@ func parseGlobalFlags(args []string) (dir, dsn, configPath, table *string, prete
 	helpVal := false
 	jsonVal := false
 	ignoreMissingVal := false
+	ignoreDriftVal := false
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch {
 		case arg == "-dir":
 			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "-") {
-				return nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -dir requires a value")
+				return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -dir requires a value")
 			}
 			i++
 			dirVal = args[i]
 		case arg == "-dsn":
 			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "-") {
-				return nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -dsn requires a value")
+				return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -dsn requires a value")
 			}
 			i++
 			dsnVal = args[i]
 		case arg == "-config" || arg == "--config":
 			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "-") {
-				return nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -config requires a value")
+				return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -config requires a value")
 			}
 			i++
 			configVal = args[i]
 		case arg == "-table":
 			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "-") {
-				return nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -table requires a value")
+				return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -table requires a value")
 			}
 			i++
 			tableVal = args[i]
@@ -537,6 +545,8 @@ func parseGlobalFlags(args []string) (dir, dsn, configPath, table *string, prete
 			jsonVal = true
 		case arg == "--ignore-missing-source":
 			ignoreMissingVal = true
+		case arg == "--ignore-checksum-drift":
+			ignoreDriftVal = true
 		case strings.HasPrefix(arg, "-dir="):
 			dirVal = strings.TrimPrefix(arg, "-dir=")
 		case strings.HasPrefix(arg, "-dsn="):
@@ -548,16 +558,16 @@ func parseGlobalFlags(args []string) (dir, dsn, configPath, table *string, prete
 		case strings.HasPrefix(arg, "-table="):
 			tableVal = strings.TrimPrefix(arg, "-table=")
 		default:
-			return nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("unknown global flag: %s", arg)
+			return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("unknown global flag: %s", arg)
 		}
 	}
 	if strings.TrimSpace(dirVal) == "" {
-		return nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -dir requires a non-empty value")
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -dir requires a non-empty value")
 	}
 	if strings.TrimSpace(tableVal) == "" {
-		return nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -table requires a non-empty value")
+		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("global flag -table requires a non-empty value")
 	}
-	return &dirVal, &dsnVal, &configVal, &tableVal, &pretendVal, &yesVal, &helpVal, &jsonVal, &ignoreMissingVal, nil
+	return &dirVal, &dsnVal, &configVal, &tableVal, &pretendVal, &yesVal, &helpVal, &jsonVal, &ignoreMissingVal, &ignoreDriftVal, nil
 }
 
 func parseN(args []string) ([]int, error) {

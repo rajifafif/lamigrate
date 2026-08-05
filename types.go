@@ -47,6 +47,13 @@ type Options struct {
 	// different checksum is still a drift error. Orphaned metadata rows are
 	// left in place (not deleted). Default false.
 	IgnoreMissingSource bool
+
+	// IgnoreChecksumDrift relaxes the global integrity check so that an
+	// applied migration whose source file has a different checksum than what
+	// was applied does NOT cause a hard error. A warning is printed to stderr
+	// instead. All other checks remain enforced: dirty states still block,	// and missing source files are still handled by IgnoreMissingSource.
+	// Default false.
+	IgnoreChecksumDrift bool
 }
 
 // ---------- Step limiting ----------
@@ -179,6 +186,8 @@ type Migrator struct {
 	maxFile   int64         // validated max file size
 	// ignoreMissingSource mirrors Options.IgnoreMissingSource.
 	ignoreMissingSource bool
+	// ignoreChecksumDrift mirrors Options.IgnoreChecksumDrift.
+	ignoreChecksumDrift bool
 }
 
 // SessionCapabilities holds validated session information captured by
@@ -202,6 +211,9 @@ func (m *Migrator) MaxFileSize() int64 { return m.maxFile }
 
 // LegacyDir returns the configured legacy directory, or empty string.
 func (m *Migrator) LegacyDir() string { return m.legacyDir }
+
+// IgnoreChecksumDrift returns the configured checksum drift policy.
+func (m *Migrator) IgnoreChecksumDrift() bool { return m.ignoreChecksumDrift }
 
 // ---------- Internal validation ----------
 

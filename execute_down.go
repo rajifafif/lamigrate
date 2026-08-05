@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -77,7 +78,7 @@ func (m *Migrator) executeRollbackOne(
 	}
 
 	// Step 1: Verify checksums match (§11.3 step 1).
-	if err := verifyDownChecksums(ctx, conn, m.tableName, mig); err != nil {
+	if err := m.verifyDownChecksums(ctx, conn, m.tableName, mig); err != nil {
 		return mr, err
 	}
 
@@ -155,7 +156,7 @@ func (m *Migrator) executeRollbackOne(
 
 // verifyDownChecksums checks that the stored checksums for a migration
 // row match the source file checksums in the plan (§11.3 step 1).
-func verifyDownChecksums(
+func (m *Migrator) verifyDownChecksums(
 	ctx context.Context,
 	conn *sql.Conn,
 	tableName string,
@@ -180,10 +181,14 @@ func verifyDownChecksums(
 		var storedSum [32]byte
 		copy(storedSum[:], storedUp)
 		if storedSum != mig.upSum {
-			return fmt.Errorf(
-				"%w: up checksum mismatch for %s",
-				ErrChecksumDrift, mig.name,
-			)
+			if m.ignoreChecksumDrift {
+				fmt.Fprintf(os.Stderr, "warning: up checksum drift for %s (ignoring)\n", mig.name)
+			} else {
+				return fmt.Errorf(
+					"%w: up checksum mismatch for %s",
+					ErrChecksumDrift, mig.name,
+				)
+			}
 		}
 	}
 
@@ -192,10 +197,14 @@ func verifyDownChecksums(
 		var storedDownSum [32]byte
 		copy(storedDownSum[:], storedDown)
 		if storedDownSum != mig.downSum {
-			return fmt.Errorf(
-				"%w: down checksum mismatch for %s",
-				ErrChecksumDrift, mig.name,
-			)
+			if m.ignoreChecksumDrift {
+				fmt.Fprintf(os.Stderr, "warning: down checksum drift for %s (ignoring)\n", mig.name)
+			} else {
+				return fmt.Errorf(
+					"%w: down checksum mismatch for %s",
+					ErrChecksumDrift, mig.name,
+				)
+			}
 		}
 	}
 
